@@ -104,25 +104,33 @@ class ReadinessChecklistScreen extends StatelessWidget {
                             border: Border.all(color: KazinColors.borderSubtle),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: entry.value,
-                                    onChanged: (val) =>
-                                        ctrl.toggleChecklistItem(entry.key),
-                                    activeColor: KazinColors.primaryBlue,
-                                  ),
-                                  Text(
-                                    entry.key,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: entry.value,
+                                      onChanged: (val) =>
+                                          ctrl.toggleChecklistItem(entry.key),
+                                      activeColor: KazinColors.primaryBlue,
                                     ),
-                                  ),
-                                ],
+                                    Expanded(
+                                      child: Text(
+                                        entry.key,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+
+                              const SizedBox(width: 8),
+
                               Icon(
                                 entry.value
                                     ? Icons.check_circle_outline

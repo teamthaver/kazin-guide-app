@@ -1,31 +1,22 @@
+// lib/controllers/profile_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
-import 'package:kazin_guide_app/core/services/auth_service/auth_service.dart';
+import 'package:kazin_guide_app/core/services/api_service.dart';
+import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
 
 class ProfileController extends GetxController {
-  final AuthService _authService = Get.find<AuthService>();
+  final AuthService authService = Get.find<AuthService>();
+  final ApiService _apiService = Get.put(ApiService());
 
-  final guideName = "Arjun Mehta".obs;
-  final guideLocation = "New Delhi, India".obs;
-  final guideLanguages = "English · Hindi · French".obs;
-  final guideEmail = "arjun.mehta@kazin.com".obs;
-  final profileCompletion = 0.90.obs;
+  final isLoggingOut = false.obs;
 
-  // Make guidePhone an observable RxString
-  final guidePhone = "".obs;
-
-  @override
-  void onInit() {
-    super.onInit();
-    _loadPhoneNumber();
-  }
-
-  void _loadPhoneNumber() {
-    final phone = _authService.savedPhone;
-    guidePhone.value = phone.isNotEmpty ? "+91 $phone" : "+91 98765 43210";
-  }
+  String get guideName => authService.fullName;
+  String get guideLocation => authService.location;
+  String get guideLanguages => authService.languages;
+  String get guidePhone => authService.formattedPhone;
+  String? get photoUrl => authService.photoUrl;
 
   void showLogoutConfirmation() {
     Get.dialog(
@@ -47,7 +38,7 @@ class ProfileController extends GetxController {
               ),
               const SizedBox(height: 10),
               const Text(
-                "Are you sure you want to log out? Offline cached records will remain saved on this device.",
+                "Are you sure you want to log out?",
                 style: TextStyle(
                   fontSize: 14,
                   color: KazinColors.textSecondary,
@@ -65,20 +56,27 @@ class ProfileController extends GetxController {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KazinColors.redDanger,
-                      minimumSize: const Size(100, 42),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  Obx(
+                    () => ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KazinColors.redDanger,
+                        minimumSize: const Size(100, 42),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
+                      onPressed: isLoggingOut.value ? null : _performLogout,
+                      child: isLoggingOut.value
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text("Logout"),
                     ),
-                    onPressed: () {
-                      Get.back();
-                      _authService.clearSession();
-                      Get.offAllNamed(Routes.LOGIN);
-                    },
-                    child: const Text("Logout"),
                   ),
                 ],
               ),
@@ -87,5 +85,21 @@ class ProfileController extends GetxController {
         ),
       ),
     );
+  }
+
+  Future<void> _performLogout() async {
+    isLoggingOut.value = true;
+    try {
+      await _apiService.logout(
+        guideId: authService.guideId,
+        contactNumber: authService.savedPhone,
+      );
+    } catch (_) {
+    } finally {
+      isLoggingOut.value = false;
+      authService.clearSession();
+      Get.back();
+      Get.offAllNamed(Routes.LOGIN);
+    }
   }
 }

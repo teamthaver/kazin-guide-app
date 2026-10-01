@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
-import 'map_navigation_screen.dart';
 
 class AirportWorkflowScreen extends StatelessWidget {
   const AirportWorkflowScreen({super.key});

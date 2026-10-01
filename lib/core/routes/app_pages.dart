@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/auth_controller.dart';
 import 'package:kazin_guide_app/controllers/splash_controller.dart';
+import 'package:kazin_guide_app/core/bindings/navigation_binding.dart';
 import 'package:kazin_guide_app/screens/document/document_wallet_screen.dart';
 import 'package:kazin_guide_app/screens/execution/live_active_service_screen.dart';
 import 'package:kazin_guide_app/screens/navigation/main_navigation_shell.dart';
@@ -71,13 +72,14 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.ASSIGNMENTS,
-      page: () => const AssignmentsListScreen(),
+      page: () => const AssignmentListScreen(),
       transition: Transition.fadeIn,
     ),
     GetPage(
       name: _Paths.NOTIFICATIONS,
       page: () => const NotificationsScreen(),
       transition: Transition.fadeIn,
+      binding: NavigationBinding(),
     ),
     GetPage(
       name: _Paths.PROFILE,

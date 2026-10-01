@@ -441,7 +441,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: executionDays.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   return Obx(() {
                     final isSel = activeDayIndex.value == index;
@@ -796,12 +796,12 @@ class LiveActiveServiceScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildActionTile(
-                  icon: Icons.checklist_rtl_rounded,
-                  title: "Readiness",
-                  color: KazinColors.primaryBlue,
-                  onTap: () => Get.toNamed(Routes.READINESS_CHECKLIST),
-                ),
+                // _buildActionTile(
+                //   icon: Icons.checklist_rtl_rounded,
+                //   title: "Readiness",
+                //   color: KazinColors.primaryBlue,
+                //   onTap: () => Get.toNamed(Routes.READINESS_CHECKLIST),
+                // ),
                 const SizedBox(width: 12),
                 _buildActionTile(
                   icon: Icons.receipt_long,

@@ -8,7 +8,7 @@ class KazinController extends GetxController {
   // Assignment & Checklist State
   final checklistState = <String, bool>{
     "Itinerary reviewed": true,
-    "Reporting location understood": true,
+    "Reporting locationg understood": true,
     "Driver contacted": false,
     "Guest / flight details checked": true,
     "Required tickets / vouchers available": true,

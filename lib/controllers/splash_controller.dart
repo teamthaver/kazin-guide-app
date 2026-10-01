@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:get/get.dart';
-import 'package:kazin_guide_app/core/services/auth_service/auth_service.dart';
+import 'package:kazin_guide_app/core/services/auth_service.dart';
 import '../core/routes/app_pages.dart';
 
 class SplashController extends GetxController {

@@ -15,7 +15,7 @@ class MainNavigationShell extends StatelessWidget {
 
   final List<Widget> _screens = const [
     HomeDashboardScreen(),
-    AssignmentsListScreen(),
+    AssignmentListScreen(),
     NotificationsScreen(),
     ProfileScreen(),
   ];
