@@ -1,16 +1,19 @@
+// lib/controllers/assignments_controller.dart me:
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
-import 'package:kazin_guide_app/model/tour_file_model.dart';
+import 'package:kazin_guide_app/models/tour_file_model.dart';
 import 'package:kazin_guide_app/screens/assignments/assignment_details_screen.dart';
 
-class AssignmentsController extends GetxController
-    with GetSingleTickerProviderStateMixin {
+class AssignmentsController extends GetxController with GetSingleTickerProviderStateMixin {
   late final TabController tabController;
   final ArrivalController arrivalCtrl = Get.find<ArrivalController>();
 
   final selectedTabIndex = 0.obs;
+
+  // RxList taaki dynamically upcoming list reactive rahe
+  final upcomingFilesList = <TourFileModel>[].obs;
 
   @override
   void onInit() {
@@ -24,28 +27,18 @@ class AssignmentsController extends GetxController
   TourFileModel? get activeFile => arrivalCtrl.activeTourFile.value;
   bool get isLoading => arrivalCtrl.isLoading.value;
 
-  // Filtered List getters for each tab
   List<TourFileModel> get activeAssignments {
     final file = activeFile;
     if (file == null) return [];
     final status = file.status.toLowerCase();
-    if (status.contains("active") ||
-        status.contains("live") ||
-        status.contains("assigned")) {
+    if (status.contains("active") || status.contains("live") || status.contains("assigned")) {
       return [file];
     }
     return [];
   }
 
-  List<TourFileModel> get upcomingAssignments {
-    final file = activeFile;
-    if (file == null) return [];
-    final status = file.status.toLowerCase();
-    if (status.contains("upcoming") || status.contains("pending")) {
-      return [file];
-    }
-    return [];
-  }
+  // Active file check + Accepted alert files list
+  List<TourFileModel> get upcomingAssignments => upcomingFilesList;
 
   List<TourFileModel> get completedAssignments {
     final file = activeFile;
@@ -55,6 +48,13 @@ class AssignmentsController extends GetxController
       return [file];
     }
     return [];
+  }
+
+  // Nayi file add karne ka method (Alert screen se call hoga)
+  void addUpcomingAssignment(TourFileModel file) {
+    if (!upcomingFilesList.any((f) => f.arrivalId == file.arrivalId)) {
+      upcomingFilesList.add(file);
+    }
   }
 
   Future<void> refreshAssignments() async {

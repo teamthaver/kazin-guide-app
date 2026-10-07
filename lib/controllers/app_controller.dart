@@ -4,14 +4,20 @@ class KazinController extends GetxController {
   final currentBottomNavIndex = 0.obs;
   final isOffline = false.obs;
   final syncStatusText = "Synced successfully".obs;
+  // New assignment offer alert badge
+  final hasUnreadAlerts = true.obs;
+
+  void markAlertsAsRead() {
+    hasUnreadAlerts.value = false;
+  }
 
   // Assignment & Checklist State
   final checklistState = <String, bool>{
-    "Itinerary reviewed": true,
-    "Reporting locationg understood": true,
+    "Itinerary reviewed": false,
+    "Reporting locationg understood": false,
     "Driver contacted": false,
-    "Guest / flight details checked": true,
-    "Required tickets / vouchers available": true,
+    "Guest / flight details checked": false,
+    "Required tickets / vouchers available": false,
   }.obs;
 
   // Airport Progress Step (0 to 4)

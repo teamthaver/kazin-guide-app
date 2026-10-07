@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:kazin_guide_app/model/tour_file_model.dart';
+import 'package:kazin_guide_app/models/tour_file_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AssignmentDetailsController extends GetxController {

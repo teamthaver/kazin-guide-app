@@ -1,26 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/controllers/assignment_details_controller.dart';
+import 'package:kazin_guide_app/controllers/assignments_controller.dart';
+import 'package:kazin_guide_app/controllers/notifications_controller.dart';
+import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
-import 'package:kazin_guide_app/model/tour_file_model.dart';
+import 'package:kazin_guide_app/models/tour_file_model.dart';
 
 class AssignmentDetailsScreen extends StatelessWidget {
   final TourFileModel? tourFile;
+  final bool isNewAssignment;
 
-  const AssignmentDetailsScreen({super.key, this.tourFile});
+  const AssignmentDetailsScreen({
+    super.key,
+    this.tourFile,
+    this.isNewAssignment = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AssignmentDetailsController());
 
-    if (tourFile == null) {
+    final Map<String, dynamic>? args = Get.arguments as Map<String, dynamic>?;
+    final TourFileModel? file = tourFile ?? args?["tourFile"];
+    final bool showAssignmentActions =
+        isNewAssignment || (args?["isNewAssignment"] == true);
+
+    if (file == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Tour Dossier")),
         body: const Center(child: Text("No dossier available")),
       );
     }
 
-    final file = tourFile!;
     final bool isClosed = file.status.toLowerCase().contains("closed");
     final groupedItinerary = controller.groupByDate(file.itinerary);
     final sortedDates = groupedItinerary.keys.toList()..sort();
@@ -31,6 +44,10 @@ class AssignmentDetailsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Get.back(),
+        ),
         title: Text(
           "File #${file.enquiryNo}",
           style: const TextStyle(
@@ -44,44 +61,46 @@ class AssignmentDetailsScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             margin: const EdgeInsets.only(right: 14),
             decoration: BoxDecoration(
-              color: isClosed
-                  ? KazinColors.borderSubtle
-                  : KazinColors.greenAcceptedBg,
+              color: showAssignmentActions
+                  ? KazinColors.blueInfoBg
+                  : (isClosed
+                        ? KazinColors.borderSubtle
+                        : KazinColors.greenAcceptedBg),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              file.status.toUpperCase(),
+              showAssignmentActions
+                  ? "NEW ASSIGNMENT"
+                  : file.status.toUpperCase(),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: isClosed
-                    ? KazinColors.textSecondary
-                    : KazinColors.greenAcceptedText,
+                color: showAssignmentActions
+                    ? KazinColors.primaryBlue
+                    : (isClosed
+                          ? KazinColors.textSecondary
+                          : KazinColors.greenAcceptedText),
               ),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: showAssignmentActions
+          ? _buildAssignmentActionsBar(file)
+          : null,
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.all(14),
         children: [
-          // 1. Primary Header: Lead & Dates Summary
           _buildLeadHeader(controller, file, sortedDates),
           const SizedBox(height: 14),
-
-          // 2. Guest Details (Second Position)
           if (file.persons.isNotEmpty) ...[
             _buildGuestsSection(file.persons),
             const SizedBox(height: 14),
           ],
-
-          // 3. Flight Details
           if (file.flights.isNotEmpty) ...[
             _buildFlightsSection(controller, file.flights),
             const SizedBox(height: 14),
           ],
-
-          // 4. Complete Transport & Driver Section
           if (file.driver != null || file.transport != null) ...[
             _buildCompleteTransportSection(
               controller,
@@ -90,20 +109,14 @@ class AssignmentDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
           ],
-
-          // 5. Hotel Accommodation Card
           if (file.hotel != null) ...[
             _buildHotelSection(file.hotel!),
             const SizedBox(height: 14),
           ],
-
-          // 6. Day-Wise Itinerary (Chips + Contextual Tickets & Remarks)
           if (sortedDates.isNotEmpty) ...[
             _buildDayWiseSection(controller, sortedDates, groupedItinerary),
             const SizedBox(height: 14),
           ],
-
-          // 7. Confirmed Meals & Restaurants
           if (file.restaurants.isNotEmpty) ...[
             _buildRestaurantsSection(controller, file.restaurants),
             const SizedBox(height: 20),
@@ -113,7 +126,88 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 1. File & Duration Summary ---
+  Widget _buildAssignmentActionsBar(TourFileModel file) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: KazinColors.borderSubtle)),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KazinColors.redDanger,
+                  side: const BorderSide(color: KazinColors.redDanger),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Get.toNamed(
+                    Routes.DECLINE_ASSIGNMENT,
+                    arguments: {"tourFile": file},
+                  );
+                },
+                child: const Text("Decline Assignment"),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KazinColors.greenAcceptedText,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  // 1. Add to Upcoming Assignments
+                  final assignmentsCtrl =
+                      Get.isRegistered<AssignmentsController>()
+                      ? Get.find<AssignmentsController>()
+                      : Get.put(AssignmentsController());
+                  assignmentsCtrl.addUpcomingAssignment(file);
+
+                  // 2. Remove assignment card from Notifications Screen
+                  if (Get.isRegistered<NotificationsController>()) {
+                    Get.find<NotificationsController>()
+                        .removeAssignmentNotification();
+                  }
+
+                  // 3. Remove red dot badge from navigation bar
+                  if (Get.isRegistered<KazinController>()) {
+                    Get.find<KazinController>().hasUnreadAlerts.value = false;
+                  }
+
+                  Get.back(); // Return to previous screen
+
+                  Get.snackbar(
+                    "Assignment Accepted!",
+                    "File #${file.enquiryNo} added to your Upcoming Assignments.",
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.white,
+                    colorText: KazinColors.greenAcceptedText,
+                    icon: const Icon(
+                      Icons.check_circle,
+                      color: KazinColors.greenAcceptedText,
+                    ),
+                  );
+                },
+                child: const Text("Accept Assignment"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Lead & Summary ---
   Widget _buildLeadHeader(
     AssignmentDetailsController controller,
     TourFileModel file,
@@ -222,7 +316,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 2. Guest Information ---
+  // --- Guest List ---
   Widget _buildGuestsSection(List<PersonModel> persons) {
     return Card(
       elevation: 0.5,
@@ -307,7 +401,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 3. Flight Operations ---
+  // --- Flight Section ---
   Widget _buildFlightsSection(
     AssignmentDetailsController controller,
     List<FlightDetailModel> flights,
@@ -396,7 +490,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 4. Complete Transport & Driver Section ---
+  // --- Transport Section ---
   Widget _buildCompleteTransportSection(
     AssignmentDetailsController controller,
     DriverModel? driver,
@@ -528,7 +622,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 5. Hotel Accommodation ---
+  // --- Hotel Section ---
   Widget _buildHotelSection(HotelBundleModel hotel) {
     return Card(
       elevation: 0.5,
@@ -626,7 +720,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 6. Day-Wise Section with Obx ---
+  // --- Day Wise Section with Obx ---
   Widget _buildDayWiseSection(
     AssignmentDetailsController controller,
     List<String> sortedDates,
@@ -647,8 +741,6 @@ class AssignmentDetailsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-
-        // Reactive Chips Selector
         Obx(() {
           final selectedIdx = controller.selectedDayIndex.value;
 
@@ -712,10 +804,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
             ),
           );
         }),
-
         const SizedBox(height: 12),
-
-        // Reactive Timeline Steps for Selected Day
         Obx(() {
           final idx = controller.selectedDayIndex.value;
           final validIdx = (idx < sortedDates.length) ? idx : 0;
@@ -877,7 +966,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- 7. Confirmed Meals & Restaurants ---
+  // --- Restaurants Section ---
   Widget _buildRestaurantsSection(
     AssignmentDetailsController controller,
     List<RestaurantDetailModel> restaurants,

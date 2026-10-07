@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
+import 'package:kazin_guide_app/controllers/assignments_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
@@ -16,6 +17,7 @@ class HomeDashboardScreen extends StatelessWidget {
     final ctrl = Get.find<KazinController>();
     final arrivalCtrl = Get.put(ArrivalController());
     final authService = Get.find<AuthService>();
+    final assignmentsCtrl = Get.put(AssignmentsController());
 
     return Scaffold(
       backgroundColor: KazinColors.scaffoldBg,
@@ -24,34 +26,6 @@ class HomeDashboardScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Image.asset('assets/images/kazin_logo.png', height: 26),
-        actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              border: Border.all(color: KazinColors.borderSubtle),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.wifi_off,
-                  size: 14,
-                  color: KazinColors.textSecondary,
-                ),
-                SizedBox(width: 6),
-                Text(
-                  "Offline",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: KazinColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -96,15 +70,15 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: KazinColors.borderSubtle),
-                      ),
-                      child: const Icon(Icons.notifications_none, size: 20),
-                    ),
-                    const SizedBox(width: 10),
+                    // Container(
+                    //   padding: const EdgeInsets.all(10),
+                    //   decoration: BoxDecoration(
+                    //     shape: BoxShape.circle,
+                    //     border: Border.all(color: KazinColors.borderSubtle),
+                    //   ),
+                    //   child: const Icon(Icons.notifications_none, size: 20),
+                    // ),
+                    // const SizedBox(width: 10),
 
                     // Clickable Profile Photo with Full-Screen Preview Dialog
                     // Top-right Profile Avatar in HomeDashboardScreen
@@ -171,16 +145,219 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _buildMetricTile("1", "Today"),
+                  _buildMetricTile("1", "Live"),
                   const SizedBox(width: 8),
-                  _buildMetricTile("3", "Upcoming"),
+                  // Controller ko inject karein (build method ke start me)
+
+                  // ...
+                  // Counters Row me static "0" ki jagah controller ki length bind karein:
+                  Obx(
+                    () => _buildMetricTile(
+                      "${assignmentsCtrl.upcomingAssignments.length}",
+                      "Upcoming",
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  _buildMetricTile("5", "Completed"),
+                  _buildMetricTile("0", "Completed"),
                 ],
               ),
             ),
             const SizedBox(height: 16),
+            // Active Dossier Card (Today's Tour Package)
+            // HomeDashboardScreen ke andar Active Dossier Card ko Obx me wrap karein:
+            Obx(() {
+              final file = arrivalCtrl.activeTourFile.value;
 
+              if (file == null) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        "No tour file assigned.",
+                        style: TextStyle(color: KazinColors.textSecondary),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Check if file is closed
+              final bool isFileClosed = file.status.toLowerCase().contains(
+                "closed",
+              );
+              final nextStep = file.itinerary.firstWhereOrNull(
+                (s) => !s.isCompleted,
+              );
+
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "FILE #${file.enquiryNo}",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: KazinColors.textSecondary,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isFileClosed
+                                  ? KazinColors.borderSubtle
+                                  : KazinColors.greenAcceptedBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              file.status.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isFileClosed
+                                    ? KazinColors.textSecondary
+                                    : KazinColors.greenAcceptedText,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "${file.leadName} (${file.numberPersons} PAX)",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: KazinColors.primaryNavy,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.directions_car_outlined,
+                            size: 16,
+                            color: KazinColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${file.transport?.vehicleName ?? 'Sedan'} • Driver: ${file.driver?.name ?? 'Assigned'}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: KazinColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.hotel_outlined,
+                            size: 16,
+                            color: KazinColors.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "${file.hotel?.hotelName ?? 'Hotel'} (${file.hotel?.category ?? ''})",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: KazinColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!isFileClosed && nextStep != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.flag_outlined,
+                              size: 16,
+                              color: KazinColors.secondaryTeal,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                "Next: ${nextStep.time} ${nextStep.title}",
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: KazinColors.secondaryTeal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+
+                      // BUTTON LOGIC: Closed file me sirf View Dossier aayega, Open Live nahi!
+                      if (isFileClosed)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: KazinColors.primaryNavy,
+                            minimumSize: const Size.fromHeight(48),
+                          ),
+                          onPressed: () => Get.to(
+                            () => AssignmentDetailsScreen(tourFile: file),
+                          ),
+                          child: const Text("View Dossier"),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: KazinColors.primaryNavy,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadiusGeometry.circular(
+                                      30,
+                                    ),
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    Get.toNamed(Routes.LIVE_SERVICE),
+                                icon: const Icon(
+                                  Icons.play_circle_fill,
+                                  size: 18,
+                                  color: Colors.tealAccent,
+                                ),
+                                label: const Text("Open Live"),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(50),
+                                ),
+                                onPressed: () => Get.to(
+                                  () => AssignmentDetailsScreen(tourFile: file),
+                                ),
+                                child: const Text("View Details"),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
             // Today's Pre-Service Checklist Card
             Card(
               child: Padding(
@@ -200,7 +377,7 @@ class HomeDashboardScreen extends StatelessWidget {
                             ),
                             SizedBox(width: 8),
                             Text(
-                              "Day 1 • Pre-Service Checks",
+                              "Day 1 • Instructions",
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -303,164 +480,7 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Active Dossier Card (Today's Tour Package)
-            // HomeDashboardScreen ke andar Active Dossier Card ko Obx me wrap karein:
-Obx(() {
-  final file = arrivalCtrl.activeTourFile.value;
-
-  if (file == null) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Text(
-            "No tour file assigned.",
-            style: TextStyle(color: KazinColors.textSecondary),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Check if file is closed
-  final bool isFileClosed = file.status.toLowerCase().contains("closed");
-  final nextStep = file.itinerary.firstWhereOrNull((s) => !s.isCompleted);
-
-  return Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "FILE #${file.enquiryNo}",
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  color: KazinColors.textSecondary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isFileClosed
-                      ? KazinColors.borderSubtle
-                      : KazinColors.greenAcceptedBg,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  file.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isFileClosed
-                        ? KazinColors.textSecondary
-                        : KazinColors.greenAcceptedText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "${file.leadName} (${file.numberPersons} PAX)",
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: KazinColors.primaryNavy,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.directions_car_outlined, size: 16, color: KazinColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                "${file.transport?.vehicleName ?? 'Sedan'} • Driver: ${file.driver?.name ?? 'Assigned'}",
-                style: const TextStyle(fontSize: 13, color: KazinColors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.hotel_outlined, size: 16, color: KazinColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                "${file.hotel?.hotelName ?? 'Hotel'} (${file.hotel?.category ?? ''})",
-                style: const TextStyle(fontSize: 13, color: KazinColors.textSecondary),
-              ),
-            ],
-          ),
-          if (!isFileClosed && nextStep != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.flag_outlined, size: 16, color: KazinColors.secondaryTeal),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    "Next: ${nextStep.time} ${nextStep.title}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: KazinColors.secondaryTeal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
           ],
-          const SizedBox(height: 16),
-
-          // BUTTON LOGIC: Closed file me sirf View Dossier aayega, Open Live nahi!
-          if (isFileClosed)
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KazinColors.primaryNavy,
-                minimumSize: const Size.fromHeight(48),
-              ),
-              onPressed: () => Get.to(
-                () => AssignmentDetailsScreen(tourFile: file),
-              ),
-              child: const Text("View Dossier"),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KazinColors.primaryNavy,
-                    ),
-                    onPressed: () => Get.toNamed(Routes.LIVE_SERVICE),
-                    icon: const Icon(Icons.play_circle_fill, size: 18, color: Colors.tealAccent),
-                    label: const Text("Open Live"),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Get.to(
-                      () => AssignmentDetailsScreen(tourFile: file),
-                    ),
-                    child: const Text("View Dossier"),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    ),
-  );
-})          ],
         ),
       ),
     );

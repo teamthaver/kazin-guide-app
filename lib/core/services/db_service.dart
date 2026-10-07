@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:kazin_guide_app/model/tour_file_model.dart';
+import 'package:kazin_guide_app/models/tour_file_model.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 

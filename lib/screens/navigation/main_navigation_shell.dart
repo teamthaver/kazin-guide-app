@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
-import 'package:kazin_guide_app/screens/dashboard/home_dashboard_screen.dart';
 import 'package:kazin_guide_app/screens/assignments/assignments_list_screen.dart';
+import 'package:kazin_guide_app/screens/dashboard/home_dashboard_screen.dart';
 import 'package:kazin_guide_app/screens/notifications/notifications_screen.dart';
 import 'package:kazin_guide_app/screens/profile/profile_screen.dart';
 import 'package:kazin_guide_app/widgets/live_pulse_button.dart';
@@ -24,7 +24,6 @@ class MainNavigationShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: KazinColors.scaffoldBg,
-      // Screen stack maintain rahega glitch-free switching ke liye
       body: Obx(
         () => IndexedStack(
           index: ctrl.currentBottomNavIndex.value,
@@ -36,26 +35,16 @@ class MainNavigationShell extends StatelessWidget {
       floatingActionButton: const LivePulseFloatingButton(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
-      // Modern Premium Bottom Navigation Bar
+      // Minimalist Clean Bottom Bar
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          border: const Border(
-            top: BorderSide(color: KazinColors.borderSubtle, width: 1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: KazinColors.primaryNavy.withValues(alpha: 0.04),
-              blurRadius: 20,
-              offset: const Offset(0, -6),
-            ),
-          ],
+          border: Border(top: BorderSide(color: Color(0xFFEEEEEE), width: 0.8)),
         ),
         child: SafeArea(
           top: false,
-          child: Container(
-            height: 68,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: SizedBox(
+            height: 60,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -76,6 +65,7 @@ class MainNavigationShell extends StatelessWidget {
                   icon: Icons.notifications_none_rounded,
                   selectedIcon: Icons.notifications_rounded,
                   label: "Alerts",
+                  showBadge: true,
                 ),
                 _buildNavItem(
                   index: 3,
@@ -96,50 +86,65 @@ class MainNavigationShell extends StatelessWidget {
     required IconData icon,
     required IconData selectedIcon,
     required String label,
+    bool showBadge = false,
   }) {
     return Obx(() {
       final isSelected = ctrl.currentBottomNavIndex.value == index;
+      final showRedDot = showBadge && ctrl.hasUnreadAlerts.value;
 
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (ctrl.currentBottomNavIndex.value != index) {
-            HapticFeedback.lightImpact();
-            ctrl.currentBottomNavIndex.value = index;
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeInOutCubic,
-          padding: EdgeInsets.symmetric(
-            horizontal: isSelected ? 14 : 10,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? KazinColors.secondaryTeal.withValues(alpha: 0.08)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
+      return Expanded(
+        child: InkWell(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          onTap: () {
+            if (ctrl.currentBottomNavIndex.value != index) {
+              HapticFeedback.lightImpact();
+              ctrl.currentBottomNavIndex.value = index;
+
+              // Alerts open hote hi red dot mark read ho jayega
+              if (index == 2) {
+                ctrl.markAlertsAsRead();
+              }
+            }
+          },
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isSelected ? selectedIcon : icon,
-                color: isSelected
-                    ? KazinColors.secondaryTeal
-                    : KazinColors.textMuted,
-                size: 22,
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    isSelected ? selectedIcon : icon,
+                    color: isSelected
+                        ? KazinColors.primaryNavy
+                        : KazinColors.textMuted,
+                    size: 22,
+                  ),
+                  if (showRedDot)
+                    Positioned(
+                      top: -1,
+                      right: -3,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: KazinColors.redDanger,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? KazinColors.secondaryTeal
+                      ? KazinColors.primaryNavy
                       : KazinColors.textSecondary,
                   letterSpacing: 0.1,
                 ),
