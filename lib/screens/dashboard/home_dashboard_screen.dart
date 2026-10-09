@@ -70,18 +70,6 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    // Container(
-                    //   padding: const EdgeInsets.all(10),
-                    //   decoration: BoxDecoration(
-                    //     shape: BoxShape.circle,
-                    //     border: Border.all(color: KazinColors.borderSubtle),
-                    //   ),
-                    //   child: const Icon(Icons.notifications_none, size: 20),
-                    // ),
-                    // const SizedBox(width: 10),
-
-                    // Clickable Profile Photo with Full-Screen Preview Dialog
-                    // Top-right Profile Avatar in HomeDashboardScreen
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: KazinColors.primaryNavy,

@@ -22,16 +22,15 @@ class ArrivalController extends GetxController {
   Future<void> loadArrivalData() async {
     isLoading.value = true;
     try {
-      // 1. Pehle local SQLite DB se instant offline data uthao
       final localData = await _dbService.getActiveTourFile();
       if (localData != null) {
         activeTourFile.value = localData;
       }
 
       // 2. Fresh Network fetch
-      final response = await _apiService.post('/api/guide/arrival', {
-        "guide_id": _authService.guideId,
-      });
+      final response = await _apiService.loadArrivalData(
+        guideId: _authService.guideId,
+      );
 
       if (response.isOk &&
           response.body != null &&

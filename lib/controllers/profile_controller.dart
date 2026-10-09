@@ -1,6 +1,8 @@
 // lib/controllers/profile_controller.dart
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
 import 'package:kazin_guide_app/core/services/auth_service.dart';
@@ -89,17 +91,36 @@ class ProfileController extends GetxController {
 
   Future<void> _performLogout() async {
     isLoggingOut.value = true;
+    log(
+      '🚪 [LOGOUT] Initiating logout for Guide ID: ${authService.guideId}...',
+    );
+
     try {
       await _apiService.logout(
         guideId: authService.guideId,
         contactNumber: authService.savedPhone,
+        sessionToken: authService.sessionToken,
       );
-    } catch (_) {
+    } catch (e) {
+      log('⚠️ [LOGOUT ERROR] Exception during logout API call: $e');
     } finally {
       isLoggingOut.value = false;
       authService.clearSession();
-      Get.back();
+
+      // 1. Bottom Nav Index ko Home (0) pe reset karein
+      if (Get.isRegistered<KazinController>()) {
+        Get.find<KazinController>().currentBottomNavIndex.value = 0;
+        Get.delete<
+          KazinController
+        >(); // Memory se controller instance destroy karein
+      }
+
+      if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {
+        Get.back();
+      }
+
       Get.offAllNamed(Routes.LOGIN);
+      log('✅ [LOGOUT] Reset nav to 0 and navigated to login');
     }
   }
 }

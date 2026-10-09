@@ -13,7 +13,6 @@ void main() async {
   Get.put(ApiService(), permanent: true);
   await Get.putAsync<AuthService>(() => AuthService().init());
   Get.put<KazinController>(KazinController(), permanent: true);
-
   runApp(const KazinGuideApp());
 }
 

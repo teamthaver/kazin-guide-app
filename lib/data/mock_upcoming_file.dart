@@ -7,6 +7,7 @@ final mockUpcomingTourFile = TourFileModel(
   groupType: "Family Vacation",
   leadName: "Mr. Rajesh Sharma",
   leadContact: "+91 9876543210",
+  
   status: "upcoming",
   enquiryId: 41200,
   enquiryNo: "FGE12900",

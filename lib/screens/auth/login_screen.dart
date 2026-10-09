@@ -54,8 +54,7 @@ class LoginScreen extends GetView<AuthController> {
                   ),
                   child: TextField(
                     controller: controller.phoneController,
-                    enabled:
-                        !controller.isOtpSent.value, // Lock input once verified
+                    enabled: !controller.isOtpSent.value,
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
                       hintText: "Enter contact number",
@@ -87,9 +86,7 @@ class LoginScreen extends GetView<AuthController> {
                   ),
                   child: TextField(
                     controller: controller.passwordController,
-                    enabled: !controller
-                        .isOtpSent
-                        .value, // Lock password once verified
+                    enabled: !controller.isOtpSent.value,
                     obscureText: !controller.isPasswordVisible.value,
                     decoration: InputDecoration(
                       hintText: "Enter your password",
@@ -125,9 +122,9 @@ class LoginScreen extends GetView<AuthController> {
                       color: KazinColors.greenAcceptedBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(
                           Icons.check_circle,
                           color: KazinColors.greenAcceptedText,
@@ -177,7 +174,7 @@ class LoginScreen extends GetView<AuthController> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: KazinColors.primaryNavy.withOpacity(0.04),
+                        color: KazinColors.primaryNavy.withValues(alpha: 0.04),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),
@@ -199,6 +196,9 @@ class LoginScreen extends GetView<AuthController> {
                           TextButton(
                             onPressed: () {
                               controller.isOtpSent.value = false;
+                              for (var c in controller.otpControllers) {
+                                c.clear();
+                              }
                             },
                             child: const Text(
                               "Change",

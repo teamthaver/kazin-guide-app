@@ -31,7 +31,7 @@ class ProfileImageViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.82),
+      backgroundColor: Colors.black.withValues(alpha: 0.82),
       body: SafeArea(
         child: Stack(
           alignment: Alignment.center,
@@ -62,7 +62,7 @@ class ProfileImageViewer extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Smooth Morphing Hero Image
+                    // Smooth Morphing Hero Image with Interactive Zoom
                     Hero(
                       tag: heroTag,
                       flightShuttleBuilder:
@@ -74,12 +74,10 @@ class ProfileImageViewer extends StatelessWidget {
                             toHeroContext,
                           ) {
                             final borderRadiusTween = BorderRadiusTween(
-                              begin: BorderRadius.circular(
-                                100,
-                              ), // Circular source avatar
+                              begin: BorderRadius.circular(100),
                               end: const BorderRadius.vertical(
                                 top: Radius.circular(24),
-                              ), // Top rounded destination
+                              ),
                             );
 
                             return AnimatedBuilder(
@@ -98,7 +96,7 @@ class ProfileImageViewer extends StatelessWidget {
                                             height: 320,
                                             width: double.infinity,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
+                                            errorBuilder: (_, _, _) =>
                                                 _buildFallback(),
                                           )
                                         : _buildFallback(),
@@ -113,16 +111,22 @@ class ProfileImageViewer extends StatelessWidget {
                         ),
                         child: Material(
                           color: KazinColors.primaryNavy,
-                          child: imageUrl != null && imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  imageUrl!,
-                                  height: 320,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      _buildFallback(),
-                                )
-                              : _buildFallback(),
+                          child: InteractiveViewer(
+                            panEnabled: true,
+                            scaleEnabled: true,
+                            minScale: 1.0,
+                            maxScale: 4.0,
+                            clipBehavior: Clip.hardEdge,
+                            child: imageUrl != null && imageUrl!.isNotEmpty
+                                ? Image.network(
+                                    imageUrl!,
+                                    height: 320,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => _buildFallback(),
+                                  )
+                                : _buildFallback(),
+                          ),
                         ),
                       ),
                     ),
@@ -153,6 +157,7 @@ class ProfileImageViewer extends StatelessWidget {
                               color: KazinColors.secondaryTeal,
                             ),
                           ),
+                          // const SizedBox(height: 6),
                         ],
                       ),
                     ),

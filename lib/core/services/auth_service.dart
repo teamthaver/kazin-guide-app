@@ -1,13 +1,21 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:kazin_guide_app/core/services/api_service.dart';
+import 'package:kazin_guide_app/core/services/device_service.dart';
 
 class AuthService extends GetxService {
+  static AuthService get to => Get.find();
+
   late final GetStorage _box;
+  final ApiService _apiService = Get.find<ApiService>();
+
   final isLoggedIn = false.obs;
 
+  // Storage Keys
   static const String _authKey = 'is_authenticated';
   static const String _guideIdKey = 'guide_id';
   static const String _userPhoneKey = 'user_phone';
+  static const String _sessionTokenKey = 'session_token';
   static const String _guideDataKey = 'guide_data';
 
   // Base URL for uploads/profile assets
@@ -20,14 +28,17 @@ class AuthService extends GetxService {
     return this;
   }
 
+  // --- Session Storage ---
   void saveLoginSession({
     required int guideId,
     required String phone,
+    required String sessionToken,
     Map<String, dynamic>? guideData,
   }) {
     _box.write(_authKey, true);
     _box.write(_guideIdKey, guideId);
     _box.write(_userPhoneKey, phone);
+    _box.write(_sessionTokenKey, sessionToken);
     if (guideData != null) {
       _box.write(_guideDataKey, guideData);
     }
@@ -38,16 +49,17 @@ class AuthService extends GetxService {
     _box.remove(_authKey);
     _box.remove(_guideIdKey);
     _box.remove(_userPhoneKey);
+    _box.remove(_sessionTokenKey);
     _box.remove(_guideDataKey);
     isLoggedIn.value = false;
   }
 
   int get guideId => _box.read<int>(_guideIdKey) ?? 0;
   String get savedPhone => _box.read<String>(_userPhoneKey) ?? "";
+  String get sessionToken => _box.read<String>(_sessionTokenKey) ?? "";
   Map<String, dynamic> get guideData =>
       Map<String, dynamic>.from(_box.read(_guideDataKey) ?? {});
 
-  // Dynamic getters according to API response payload
   String get fullName {
     final data = guideData;
     final first = (data['name'] ?? '').toString().trim();
@@ -76,14 +88,13 @@ class AuthService extends GetxService {
     if (city.isNotEmpty && country.isNotEmpty) return "$city, $country";
     return city.isNotEmpty
         ? city
-        : (country.isNotEmpty ? country : "Almaty, Kazakhstan");
+        : (country.isNotEmpty ? country : "Tbilisi, Georgia");
   }
 
   String get languages {
     final data = guideData;
     final langs = (data['languages'] ?? '').toString().trim();
     if (langs.isEmpty) return "English";
-    // Convert "kazakh,russian,english" to "Kazakh · Russian · English"
     return langs
         .split(',')
         .map((e) => e.trim())
@@ -97,5 +108,47 @@ class AuthService extends GetxService {
     final photo = (data['photo'] ?? '').toString().trim();
     if (photo.isEmpty) return null;
     return "$assetBaseUrl$photo";
+  }
+
+  Future<bool> validateCurrentSession() async {
+    if (sessionToken.isEmpty || guideId == 0) {
+      return false;
+    }
+
+    final deviceString = await DeviceService.getOrCreateDeviceId();
+
+    try {
+      final response = await _apiService.validateSession(
+        guideId: guideId,
+        contactNumber: savedPhone,
+        sessionToken: sessionToken,
+        deviceString: deviceString,
+      );
+
+      if (response.statusCode == 200 && response.body['success'] == true) {
+        if (response.body['data'] != null) {
+          _box.write(_guideDataKey, response.body['data']);
+        }
+        return true;
+      }
+    } catch (_) {}
+
+    clearSession();
+    return false;
+  }
+
+  // POST /auth/logout: End session, destroy session_token (device binding stays)
+  Future<void> logout() async {
+    try {
+      if (sessionToken.isNotEmpty && guideId != 0) {
+        await _apiService.logout(
+          guideId: guideId,
+          contactNumber: savedPhone,
+          sessionToken: sessionToken,
+        );
+      }
+    } catch (_) {}
+
+    clearSession();
   }
 }

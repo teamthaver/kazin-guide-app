@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
@@ -12,15 +14,20 @@ class ApiService extends GetConnect {
     httpClient.baseUrl = baseUrlEndpoint;
     httpClient.timeout = const Duration(seconds: 20);
 
-    // 1. Request Interceptor (Logging / Common Headers)
+    // Request Interceptor with Logging
     httpClient.addRequestModifier<dynamic>((request) {
       request.headers['Accept'] = 'application/json';
       request.headers['Content-Type'] = 'application/json';
+      log('🌐 [HTTP REQUEST] ${request.method} -> ${request.url}');
       return request;
     });
 
-    // 2. Centralised Response & Error Interceptor
+    // Response Interceptor with Logging
     httpClient.addResponseModifier((request, response) {
+      log(
+        '📥 [HTTP RESPONSE] ${request.method} ${request.url} | Status: ${response.statusCode}',
+      );
+      log('📦 [HTTP BODY] ${jsonEncode(response.body)}');
       _handleCentralizedError(response);
       return response;
     });
@@ -30,7 +37,6 @@ class ApiService extends GetConnect {
 
   // --- Centralised Error Dispatcher ---
   void _handleCentralizedError(Response response) {
-    // Agar request successfully 200 OK hai aur server response body me success: true hai, toh skip karein
     if (response.isOk) {
       if (response.body is Map && response.body['success'] == false) {
         final String message =
@@ -40,7 +46,6 @@ class ApiService extends GetConnect {
       return;
     }
 
-    // Network disconnection / Socket timeout
     if (response.status.connectionError) {
       _showErrorSnackbar(
         "No Internet",
@@ -49,7 +54,6 @@ class ApiService extends GetConnect {
       return;
     }
 
-    // HTTP Status Codes Mapping (Documentation section 5 ke hisaab se)
     switch (response.statusCode) {
       case 400:
         final message = _extractErrorMessage(
@@ -65,7 +69,6 @@ class ApiService extends GetConnect {
           "Guide assignment mismatch or session expired.",
         );
         _showErrorSnackbar("Access Denied", message);
-        // Force logout if session invalid on server
         if (Get.isRegistered<AuthService>()) {
           Get.find<AuthService>().clearSession();
           Get.offAllNamed(Routes.LOGIN);
@@ -101,7 +104,6 @@ class ApiService extends GetConnect {
   }
 
   void _showErrorSnackbar(String title, String message) {
-    // Duplicate snackbars avoid karne ke liye
     if (Get.isSnackbarOpen) return;
 
     Get.snackbar(
@@ -126,11 +128,15 @@ class ApiService extends GetConnect {
   Future<Response> login({
     required String contactNumber,
     required String password,
+    required String deviceString,
   }) {
-    return post('/api/auth/login', {
+    final payload = {
       "contact_number": contactNumber,
       "password": password,
-    });
+      "device_string": deviceString,
+    };
+    log('📤 [AUTH LOGIN PAYLOAD]: $payload');
+    return post('/api/auth/login', payload);
   }
 
   Future<Response> verifyOtp({
@@ -138,21 +144,43 @@ class ApiService extends GetConnect {
     required String contactNumber,
     required String otp,
   }) {
-    return post('/api/auth/verify-otp', {
+    final payload = {
       "guide_id": guideId,
       "contact_number": contactNumber,
       "otp": otp,
-    });
+    };
+    log('📤 [AUTH VERIFY OTP PAYLOAD]: $payload');
+    return post('/api/auth/verify-otp', payload);
+  }
+
+  Future<Response> validateSession({
+    required int guideId,
+    required String contactNumber,
+    required String sessionToken,
+    required String deviceString,
+  }) {
+    final payload = {
+      "guide_id": guideId,
+      "contact_number": contactNumber,
+      "sessionToken": sessionToken,
+      "device_string": deviceString,
+    };
+    log('📤 [AUTH VALIDATE PAYLOAD]: $payload');
+    return post('/api/auth/validate', payload);
   }
 
   Future<Response> logout({
     required int guideId,
     required String contactNumber,
+    required String sessionToken,
   }) {
-    return post('/api/auth/logout', {
+    final payload = {
       "guide_id": guideId,
       "contact_number": contactNumber,
-    });
+      "sessionToken": sessionToken,
+    };
+    log('📤 [AUTH LOGOUT PAYLOAD]: $payload');
+    return post('/api/auth/logout', payload);
   }
 
   Future<Response> loadArrivalData({required int guideId}) {
