@@ -23,8 +23,7 @@ class DbService {
   }
 
   Future<void> _createDB(Database db, int version) async {
-    // 1. Tour Files Table
-    await db.execute('''
+     await db.execute('''
       CREATE TABLE tour_files (
         arrival_id INTEGER PRIMARY KEY,
         enquiry_id INTEGER,
@@ -33,7 +32,7 @@ class DbService {
         lead_contact TEXT,
         status TEXT,
         number_persons INTEGER,
-        check_in_date TEXT,
+        check_in_date 0,
         check_out_date TEXT,
         number_of_nights TEXT,
         driver_name TEXT,
@@ -47,8 +46,7 @@ class DbService {
       )
     ''');
 
-    // 2. Itinerary Steps Table
-    await db.execute('''
+     await db.execute('''
       CREATE TABLE itinerary_steps (
         id INTEGER PRIMARY KEY,
         arrival_id INTEGER,
@@ -63,13 +61,11 @@ class DbService {
     ''');
   }
 
-  // --- Insert ya Update Active File ---
-  Future<void> saveTourFile(TourFileModel tourFile) async {
+   Future<void> saveTourFile(TourFileModel tourFile) async {
     final db = await instance.database;
 
     await db.transaction((txn) async {
-      // 1. Insert/Replace main tour file record
-      await txn.insert('tour_files', {
+       await txn.insert('tour_files', {
         'arrival_id': tourFile.arrivalId,
         'enquiry_id': tourFile.enquiryId,
         'enquiry_no': tourFile.enquiryNo,
@@ -90,15 +86,13 @@ class DbService {
         'full_json_blob': jsonEncode(tourFile.toJson()),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-      // 2. Pehle purani steps delete karein agar exist karti hain
-      await txn.delete(
+       await txn.delete(
         'itinerary_steps',
         where: 'arrival_id = ?',
         whereArgs: [tourFile.arrivalId],
       );
 
-      // 3. Naye itinerary steps batch insert karein
-      for (final step in tourFile.itinerary) {
+       for (final step in tourFile.itinerary) {
         await txn.insert('itinerary_steps', {
           'id': step.id,
           'arrival_id': tourFile.arrivalId,
@@ -113,8 +107,7 @@ class DbService {
     });
   }
 
-  // --- Fetch Active File Offline ---
-  Future<TourFileModel?> getActiveTourFile() async {
+   Future<TourFileModel?> getActiveTourFile() async {
     final db = await instance.database;
     final results = await db.query(
       'tour_files',
@@ -131,8 +124,7 @@ class DbService {
     return null;
   }
 
-  // --- Single Itinerary Task Complete Update ---
-  Future<void> updateStepStatus(int stepId, bool isCompleted) async {
+   Future<void> updateStepStatus(int stepId, bool isCompleted) async {
     final db = await instance.database;
     await db.update(
       'itinerary_steps',
@@ -142,8 +134,7 @@ class DbService {
     );
   }
 
-  // --- Clear Database ---
-  Future<void> clearAllData() async {
+   Future<void> clearAllData() async {
     final db = await instance.database;
     await db.delete('itinerary_steps');
     await db.delete('tour_files');

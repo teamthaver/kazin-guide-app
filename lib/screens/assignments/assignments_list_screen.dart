@@ -126,7 +126,6 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row: File No & Status Badge
             Row(
               children: [
                 Expanded(
@@ -174,7 +173,6 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
             ),
             const SizedBox(height: 10),
 
-            // Lead Guest & PAX (Overflow safe)
             Text(
               "${file.leadName} (${file.numberPersons} PAX)",
               maxLines: 1,
@@ -187,7 +185,6 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
             ),
             const SizedBox(height: 6),
 
-            // Hotel Info
             if (file.hotel != null) ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +214,6 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
               const SizedBox(height: 6),
             ],
 
-            // Transport & Driver Info (Overflow safe)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -245,7 +241,6 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
             ),
             const SizedBox(height: 16),
 
-            // Button actions
             if (isActive)
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(

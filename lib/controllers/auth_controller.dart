@@ -112,8 +112,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // POST /api/auth/verify-otp via ApiService
-  Future<void> submitVerifyOtp() async {
+   Future<void> submitVerifyOtp() async {
     final otp = enteredOtp;
     if (otp.length < 6) {
       Get.snackbar(
@@ -153,8 +152,7 @@ class AuthController extends GetxController {
               : null,
         );
 
-        // Navigation index reset to Home (0)
-        if (Get.isRegistered<KazinController>()) {
+         if (Get.isRegistered<KazinController>()) {
           Get.find<KazinController>().currentBottomNavIndex.value = 0;
         }
 

@@ -9,7 +9,6 @@ class ExpenseSubmissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Controller inject kiya taaki state properly lay out ho
     final ctrl = Get.put(ExpenseController());
 
     return Scaffold(

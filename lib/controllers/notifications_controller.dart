@@ -1,14 +1,12 @@
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
-import 'package:kazin_guide_app/data/mock_upcoming_file.dart';
-import 'package:kazin_guide_app/models/tour_file_model.dart';
+ import 'package:kazin_guide_app/models/tour_file_model.dart';
 
 class NotificationsController extends GetxController {
   final filters = ["All", "Assignments", "Changes", "Reminders", "Urgent"];
   final selectedFilter = "All".obs;
 
-  // New assignment alert flag
-  final hasNewAssignment = true.obs;
+   final hasNewAssignment = true.obs;
 
   void selectFilter(String filter) {
     selectedFilter.value = filter;

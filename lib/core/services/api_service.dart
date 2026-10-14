@@ -14,7 +14,6 @@ class ApiService extends GetConnect {
     httpClient.baseUrl = baseUrlEndpoint;
     httpClient.timeout = const Duration(seconds: 20);
 
-    // Request Interceptor with Logging
     httpClient.addRequestModifier<dynamic>((request) {
       request.headers['Accept'] = 'application/json';
       request.headers['Content-Type'] = 'application/json';
@@ -22,7 +21,6 @@ class ApiService extends GetConnect {
       return request;
     });
 
-    // Response Interceptor with Logging
     httpClient.addResponseModifier((request, response) {
       log(
         '📥 [HTTP RESPONSE] ${request.method} ${request.url} | Status: ${response.statusCode}',
@@ -35,7 +33,6 @@ class ApiService extends GetConnect {
     super.onInit();
   }
 
-  // --- Centralised Error Dispatcher ---
   void _handleCentralizedError(Response response) {
     if (response.isOk) {
       if (response.body is Map && response.body['success'] == false) {
@@ -124,7 +121,6 @@ class ApiService extends GetConnect {
     );
   }
 
-  // --- Auth APIs ---
   Future<Response> login({
     required String contactNumber,
     required String password,

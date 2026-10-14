@@ -22,15 +22,14 @@ class ArrivalController extends GetxController {
   Future<void> loadArrivalData() async {
     isLoading.value = true;
     try {
-      final localData = await _dbService.getActiveTourFile();
+       final localData = await _dbService.getActiveTourFile();
       if (localData != null) {
         activeTourFile.value = localData;
       }
 
-      // 2. Fresh Network fetch
-      final response = await _apiService.loadArrivalData(
-        guideId: _authService.guideId,
-      );
+       final response = await _apiService.post('/api/guide/arrival', {
+        "guide_id": _authService.guideId,
+      });
 
       if (response.isOk &&
           response.body != null &&
@@ -39,24 +38,20 @@ class ArrivalController extends GetxController {
         if (dataList.isNotEmpty) {
           final freshTour = TourFileModel.fromJson(dataList.first);
 
-          // 3. SQLite me replace/save karein
-          await _dbService.saveTourFile(freshTour);
+           await _dbService.saveTourFile(freshTour);
           activeTourFile.value = freshTour;
         }
       }
     } catch (_) {
-      // Offline fallback already active from SQLite
-    } finally {
+     } finally {
       isLoading.value = false;
     }
   }
 
-  // Live Task Toggle (SQLite local persistence)
-  Future<void> toggleStepCompletion(int stepId, bool currentStatus) async {
+   Future<void> toggleStepCompletion(int stepId, bool currentStatus) async {
     await _dbService.updateStepStatus(stepId, !currentStatus);
 
-    // In-memory model update for zero flicker
-    final current = activeTourFile.value;
+     final current = activeTourFile.value;
     if (current != null) {
       final updatedSteps = current.itinerary.map((s) {
         if (s.id == stepId) {

@@ -77,8 +77,7 @@ final mockUpcomingTourFile = TourFileModel(
     ),
   ],
   itinerary: [
-    // Day 1
-    ItineraryStepModel(
+     ItineraryStepModel(
       id: 5001,
       date: "2026-11-15T00:00:00.000Z",
       time: "11:30",

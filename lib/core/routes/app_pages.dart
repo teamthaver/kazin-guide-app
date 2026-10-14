@@ -6,10 +6,8 @@ import 'package:kazin_guide_app/screens/document/document_wallet_screen.dart';
 import 'package:kazin_guide_app/screens/execution/live_active_service_screen.dart';
 import 'package:kazin_guide_app/screens/navigation/main_navigation_shell.dart';
 
-// Controllers & Shell
 import '../../controllers/app_controller.dart';
 
-// Screens
 import '../../screens/auth/splash_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/dashboard/home_dashboard_screen.dart';
@@ -38,7 +36,6 @@ class AppPages {
   static const INITIAL = Routes.SPLASH;
 
   static final routes = [
-    // Shell & Auth
     GetPage(
       name: _Paths.SPLASH,
       page: () => const SplashScreen(),
@@ -64,7 +61,6 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
 
-    // Primary Tabs
     GetPage(
       name: _Paths.HOME,
       page: () => const HomeDashboardScreen(),
@@ -87,7 +83,6 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
 
-    // Assignment & Workflow
     GetPage(
       name: _Paths.ASSIGNMENT_DETAILS,
       page: () => const AssignmentDetailsScreen(),
@@ -131,7 +126,6 @@ class AppPages {
       fullscreenDialog: true,
     ),
 
-    // Operations & Emergency
     GetPage(
       name: _Paths.INCIDENT_REPORTING,
       page: () => const IncidentReportingScreen(),
@@ -144,7 +138,6 @@ class AppPages {
       fullscreenDialog: true,
     ),
 
-    // Finance & Closure
     GetPage(
       name: _Paths.EXPENSE_SUBMISSION,
       page: () => const ExpenseSubmissionScreen(),
@@ -166,7 +159,6 @@ class AppPages {
       transition: Transition.rightToLeft,
     ),
 
-    // Documents & SOP
     GetPage(
       name: _Paths.DOCUMENT_WALLET,
       page: () => const DocumentWalletScreen(),

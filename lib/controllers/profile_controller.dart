@@ -1,4 +1,3 @@
-// lib/controllers/profile_controller.dart
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -107,12 +106,9 @@ class ProfileController extends GetxController {
       isLoggingOut.value = false;
       authService.clearSession();
 
-      // 1. Bottom Nav Index ko Home (0) pe reset karein
       if (Get.isRegistered<KazinController>()) {
         Get.find<KazinController>().currentBottomNavIndex.value = 0;
-        Get.delete<
-          KazinController
-        >(); // Memory se controller instance destroy karein
+        Get.delete<KazinController>();
       }
 
       if (Get.isDialogOpen == true || Get.isBottomSheetOpen == true) {

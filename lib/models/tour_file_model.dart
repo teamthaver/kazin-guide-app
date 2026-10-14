@@ -179,8 +179,7 @@ class ItineraryStepModel {
   }
 }
 
-// 2. Flight Details
-class FlightDetailModel {
+ class FlightDetailModel {
   final int id;
   final String flightNumber;
   final String departureAirport;

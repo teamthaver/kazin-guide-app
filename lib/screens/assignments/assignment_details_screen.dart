@@ -21,7 +21,6 @@ class AssignmentDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AssignmentDetailsController());
-
     final Map<String, dynamic>? args = Get.arguments as Map<String, dynamic>?;
     final TourFileModel? file = tourFile ?? args?["tourFile"];
     final bool showAssignmentActions =
@@ -749,7 +748,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: sortedDates.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final isSelected = index == selectedIdx;
                 final dateStr = sortedDates[index];

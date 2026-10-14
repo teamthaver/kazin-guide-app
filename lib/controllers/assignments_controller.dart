@@ -1,5 +1,4 @@
-// lib/controllers/assignments_controller.dart me:
-import 'package:flutter/material.dart';
+ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
@@ -12,8 +11,7 @@ class AssignmentsController extends GetxController with GetSingleTickerProviderS
 
   final selectedTabIndex = 0.obs;
 
-  // RxList taaki dynamically upcoming list reactive rahe
-  final upcomingFilesList = <TourFileModel>[].obs;
+   final upcomingFilesList = <TourFileModel>[].obs;
 
   @override
   void onInit() {
@@ -37,8 +35,7 @@ class AssignmentsController extends GetxController with GetSingleTickerProviderS
     return [];
   }
 
-  // Active file check + Accepted alert files list
-  List<TourFileModel> get upcomingAssignments => upcomingFilesList;
+   List<TourFileModel> get upcomingAssignments => upcomingFilesList;
 
   List<TourFileModel> get completedAssignments {
     final file = activeFile;
@@ -50,8 +47,7 @@ class AssignmentsController extends GetxController with GetSingleTickerProviderS
     return [];
   }
 
-  // Nayi file add karne ka method (Alert screen se call hoga)
-  void addUpcomingAssignment(TourFileModel file) {
+   void addUpcomingAssignment(TourFileModel file) {
     if (!upcomingFilesList.any((f) => f.arrivalId == file.arrivalId)) {
       upcomingFilesList.add(file);
     }
