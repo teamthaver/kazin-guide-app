@@ -275,7 +275,7 @@ class ProfileScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: ctrl.showLogoutConfirmation,
               icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text("Sign Out Account"),
+              label: const Text("Sign Out"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: KazinColors.redDanger,
                 side: const BorderSide(color: KazinColors.redDanger),

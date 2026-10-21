@@ -14,7 +14,7 @@ class SplashController extends GetxController {
   Future<void> _checkSession() async {
     await Future.delayed(const Duration(milliseconds: 1200));
 
-     final isValid = await _authService.validateCurrentSession();
+    final isValid = await _authService.validateCurrentSession();
 
     if (isValid) {
       Get.offAllNamed(Routes.NAVIGATION_SHELL);

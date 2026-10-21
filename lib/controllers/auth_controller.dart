@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
@@ -91,12 +90,20 @@ class AuthController extends GetxController {
           }
         });
       } else {
-        final message =
-            response.body?['message'] ?? "Login rejected by server.";
-        log('❌ Login failed message: $message');
+        String errorMessage =
+            "Server error (${response.statusCode}). Please try again later.";
+
+        // Safe check: Body Map hai ya nahi
+        if (response.body is Map && response.body['message'] != null) {
+          errorMessage = response.body['message'].toString();
+        } else if (response.statusCode == 502 || response.statusCode == 503) {
+          errorMessage =
+              "Server is currently unavailable (502 Bad Gateway). Please contact support.";
+        }
+
         Get.snackbar(
-          "Authentication Failed",
-          message,
+          "Login Failed",
+          errorMessage,
           snackPosition: SnackPosition.BOTTOM,
         );
       }
@@ -112,7 +119,7 @@ class AuthController extends GetxController {
     }
   }
 
-   Future<void> submitVerifyOtp() async {
+  Future<void> submitVerifyOtp() async {
     final otp = enteredOtp;
     if (otp.length < 6) {
       Get.snackbar(
@@ -152,7 +159,7 @@ class AuthController extends GetxController {
               : null,
         );
 
-         if (Get.isRegistered<KazinController>()) {
+        if (Get.isRegistered<KazinController>()) {
           Get.find<KazinController>().currentBottomNavIndex.value = 0;
         }
 

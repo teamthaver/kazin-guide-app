@@ -23,30 +23,30 @@ class DbService {
   }
 
   Future<void> _createDB(Database db, int version) async {
-     await db.execute('''
-      CREATE TABLE tour_files (
-        arrival_id INTEGER PRIMARY KEY,
-        enquiry_id INTEGER,
-        enquiry_no TEXT,
-        lead_name TEXT,
-        lead_contact TEXT,
-        status TEXT,
-        number_persons INTEGER,
-        check_in_date 0,
-        check_out_date TEXT,
-        number_of_nights TEXT,
-        driver_name TEXT,
-        driver_phone TEXT,
-        vehicle_name TEXT,
-        vehicle_type TEXT,
-        vehicle_capacity INTEGER,
-        hotel_name TEXT,
-        hotel_city TEXT,
-        full_json_blob TEXT
-      )
-    ''');
+    await db.execute('''
+  CREATE TABLE tour_files (
+    arrival_id INTEGER PRIMARY KEY,
+    enquiry_id INTEGER,
+    enquiry_no TEXT,
+    lead_name TEXT,
+    lead_contact TEXT,
+    status TEXT,
+    number_persons INTEGER,
+    check_in_date TEXT,
+    check_out_date TEXT,
+    number_of_nights TEXT,
+    driver_name TEXT,
+    driver_phone TEXT,
+    vehicle_name TEXT,
+    vehicle_type TEXT,
+    vehicle_capacity INTEGER,
+    hotel_name TEXT,
+    hotel_city TEXT,
+    full_json_blob TEXT
+  )
+''');
 
-     await db.execute('''
+    await db.execute('''
       CREATE TABLE itinerary_steps (
         id INTEGER PRIMARY KEY,
         arrival_id INTEGER,
@@ -61,11 +61,11 @@ class DbService {
     ''');
   }
 
-   Future<void> saveTourFile(TourFileModel tourFile) async {
+  Future<void> saveTourFile(TourFileModel tourFile) async {
     final db = await instance.database;
 
     await db.transaction((txn) async {
-       await txn.insert('tour_files', {
+      await txn.insert('tour_files', {
         'arrival_id': tourFile.arrivalId,
         'enquiry_id': tourFile.enquiryId,
         'enquiry_no': tourFile.enquiryNo,
@@ -86,13 +86,13 @@ class DbService {
         'full_json_blob': jsonEncode(tourFile.toJson()),
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-       await txn.delete(
+      await txn.delete(
         'itinerary_steps',
         where: 'arrival_id = ?',
         whereArgs: [tourFile.arrivalId],
       );
 
-       for (final step in tourFile.itinerary) {
+      for (final step in tourFile.itinerary) {
         await txn.insert('itinerary_steps', {
           'id': step.id,
           'arrival_id': tourFile.arrivalId,
@@ -107,7 +107,7 @@ class DbService {
     });
   }
 
-   Future<TourFileModel?> getActiveTourFile() async {
+  Future<TourFileModel?> getActiveTourFile() async {
     final db = await instance.database;
     final results = await db.query(
       'tour_files',
@@ -124,7 +124,7 @@ class DbService {
     return null;
   }
 
-   Future<void> updateStepStatus(int stepId, bool isCompleted) async {
+  Future<void> updateStepStatus(int stepId, bool isCompleted) async {
     final db = await instance.database;
     await db.update(
       'itinerary_steps',
@@ -134,7 +134,7 @@ class DbService {
     );
   }
 
-   Future<void> clearAllData() async {
+  Future<void> clearAllData() async {
     final db = await instance.database;
     await db.delete('itinerary_steps');
     await db.delete('tour_files');

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:kazin_guide_app/core/theme/app_theme.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:kazin_guide_app/controllers/expense_controller.dart';
-import 'cash_reconciliation_screen.dart';
+import 'package:kazin_guide_app/core/theme/app_theme.dart';
 
 class ExpenseSubmissionScreen extends StatelessWidget {
   const ExpenseSubmissionScreen({super.key});
@@ -87,120 +87,211 @@ class ExpenseSubmissionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
 
-              const Text(
-                "Amount",
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: KazinColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: ctrl.amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  prefixIcon: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                    child: Text(
-                      "₹",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: KazinColors.textPrimary,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Amount Spent",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: KazinColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: ctrl.amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            hintText: "0.00",
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: KazinColors.borderSubtle,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: KazinColors.primaryBlue,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 0,
-                  ),
-                  hintText: "0.00",
-                  hintStyle: const TextStyle(color: KazinColors.textMuted),
-                  suffixIcon: const Icon(
-                    Icons.calculate_outlined,
-                    color: KazinColors.textSecondary,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: KazinColors.borderSubtle,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Currency",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: KazinColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: KazinColors.borderSubtle),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Obx(
+                            () => DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: ctrl.selectedCurrency.value,
+                                isExpanded: true,
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: "GEL",
+                                    child: Text("GEL (₾)"),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: "USD",
+                                    child: Text("USD (\$)"),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: "INR",
+                                    child: Text("INR (₹)"),
+                                  ),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null)
+                                    ctrl.selectedCurrency.value = val;
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: KazinColors.primaryBlue,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
+                ],
               ),
               const SizedBox(height: 18),
 
-              // Fixed Layout: Receipt Card with proper flex bounds
+              // Receipts Section (Up to 5 receipts with preview)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Receipt Proofs",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: KazinColors.textPrimary,
+                    ),
+                  ),
+                  Obx(
+                    () => Text(
+                      "${ctrl.receiptFiles.length} / 5 Attached",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: KazinColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
                     children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: KazinColors.scaffoldBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: KazinColors.borderSubtle),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_outlined,
-                              color: KazinColors.textMuted,
-                              size: 28,
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "Receipt",
-                              style: TextStyle(
-                                color: KazinColors.textMuted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Expanded se wrap kiya taaki button layout crash na ho
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ctrl.receiptAttached.value = true;
-                          },
-                          icon: const Icon(Icons.upload_file_rounded, size: 18),
-                          label: const Text(
-                            "Add Receipt",
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                      Obx(() {
+                        if (ctrl.receiptFiles.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return SizedBox(
+                          height: 72,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: ctrl.receiptFiles.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, idx) {
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      ctrl.receiptFiles[idx],
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () => ctrl.removeReceipt(idx),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 14,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: KazinColors.primaryNavy,
-                            side: const BorderSide(
-                              color: KazinColors.borderSubtle,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                        );
+                      }),
+                      Obx(
+                        () => ctrl.receiptFiles.isNotEmpty
+                            ? const SizedBox(height: 12)
+                            : const SizedBox.shrink(),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _showImageSourceSheet(context, ctrl),
+                        icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                        label: const Text(
+                          "Attach Receipt (Max 5)",
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: KazinColors.primaryNavy,
+                          minimumSize: const Size.fromHeight(46),
+                          side: const BorderSide(
+                            color: KazinColors.borderSubtle,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
@@ -211,7 +302,7 @@ class ExpenseSubmissionScreen extends StatelessWidget {
               const SizedBox(height: 18),
 
               const Text(
-                "Notes",
+                "Remarks",
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
@@ -225,7 +316,7 @@ class ExpenseSubmissionScreen extends StatelessWidget {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  hintText: "Add notes (optional)",
+                  hintText: "Add remarks or reference (optional)",
                   hintStyle: const TextStyle(color: KazinColors.textMuted),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -244,19 +335,76 @@ class ExpenseSubmissionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 28),
 
-              ElevatedButton(
-                onPressed: () => Get.to(() => const CashReconciliationScreen()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: KazinColors.secondaryTeal,
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              Obx(
+                () => ElevatedButton(
+                  onPressed: ctrl.isSubmitting.value
+                      ? null
+                      : ctrl.submitExpense,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: KazinColors.secondaryTeal,
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
+                  child: ctrl.isSubmitting.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "Submit Expense",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
-                child: const Text("Submit Expense"),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showImageSourceSheet(BuildContext context, ExpenseController ctrl) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.camera_alt_outlined,
+                color: KazinColors.primaryNavy,
+              ),
+              title: const Text("Take Photo with Camera"),
+              onTap: () {
+                Get.back();
+                ctrl.pickReceipt(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: KazinColors.primaryNavy,
+              ),
+              title: const Text("Select from Gallery"),
+              onTap: () {
+                Get.back();
+                ctrl.pickReceipt(ImageSource.gallery);
+              },
+            ),
+          ],
         ),
       ),
     );

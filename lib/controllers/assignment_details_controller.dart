@@ -10,7 +10,9 @@ class AssignmentDetailsController extends GetxController {
     selectedDayIndex.value = index;
   }
 
-  Map<String, List<ItineraryStepModel>> groupByDate(List<ItineraryStepModel> steps) {
+  Map<String, List<ItineraryStepModel>> groupByDate(
+    List<ItineraryStepModel> steps,
+  ) {
     final Map<String, List<ItineraryStepModel>> grouped = {};
     for (var step in steps) {
       final dateKey = step.date.split('T')[0];
@@ -24,7 +26,20 @@ class AssignmentDetailsController extends GetxController {
   String formatShortDate(String isoDate) {
     try {
       final dt = DateTime.parse(isoDate);
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       return "${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}";
     } catch (_) {
       return isoDate;

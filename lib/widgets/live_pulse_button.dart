@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/controllers/live_pulse_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
@@ -44,7 +45,10 @@ class LivePulseFloatingButton extends StatelessWidget {
             highlightElevation: 8,
             backgroundColor: KazinColors.primaryNavy,
             shape: const CircleBorder(),
-            onPressed: () => Get.toNamed(Routes.LIVE_SERVICE),
+            onPressed: () {
+              Get.find<ArrivalController>().resetToToday();
+              Get.toNamed(Routes.LIVE_SERVICE);
+            },
             child: Container(
               width: 22,
               height: 22,

@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
-import 'package:kazin_guide_app/core/services/device_service.dart';
 
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
@@ -111,30 +110,36 @@ class AuthService extends GetxService {
   }
 
   Future<bool> validateCurrentSession() async {
+    // Abhi ke liye API validation bypass kiya hai
+    // Sirf check karega ki local storage me sessionToken aur guideId hai ya nahi
     if (sessionToken.isEmpty || guideId == 0) {
       return false;
     }
 
-    final deviceString = await DeviceService.getOrCreateDeviceId();
+    return true;
 
-    try {
-      final response = await _apiService.validateSession(
-        guideId: guideId,
-        contactNumber: savedPhone,
-        sessionToken: sessionToken,
-        deviceString: deviceString,
-      );
+    /*
+  final deviceString = await DeviceService.getOrCreateDeviceId();
 
-      if (response.statusCode == 200 && response.body['success'] == true) {
-        if (response.body['data'] != null) {
-          _box.write(_guideDataKey, response.body['data']);
-        }
-        return true;
+  try {
+    final response = await _apiService.validateSession(
+      guideId: guideId,
+      contactNumber: savedPhone,
+      sessionToken: sessionToken,
+      deviceString: deviceString,
+    );
+
+    if (response.statusCode == 200 && response.body['success'] == true) {
+      if (response.body['data'] != null) {
+        _box.write(_guideDataKey, response.body['data']);
       }
-    } catch (_) {}
+      return true;
+    }
+  } catch (_) {}
 
-    clearSession();
-    return false;
+  clearSession();
+  return false;
+  */
   }
 
   // POST /auth/logout: End session, destroy session_token (device binding stays)

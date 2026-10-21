@@ -21,6 +21,10 @@ class AssignmentDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(AssignmentDetailsController());
+    final assignmentsCtrl = Get.isRegistered<AssignmentsController>()
+        ? Get.find<AssignmentsController>()
+        : Get.put(AssignmentsController());
+
     final Map<String, dynamic>? args = Get.arguments as Map<String, dynamic>?;
     final TourFileModel? file = tourFile ?? args?["tourFile"];
     final bool showAssignmentActions =
@@ -85,7 +89,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
         ],
       ),
       bottomNavigationBar: showAssignmentActions
-          ? _buildAssignmentActionsBar(file)
+          ? _buildAssignmentActionsBar(assignmentsCtrl, file)
           : null,
       body: ListView(
         padding: const EdgeInsets.all(14),
@@ -125,82 +129,106 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAssignmentActionsBar(TourFileModel file) {
+  Widget _buildAssignmentActionsBar(
+    AssignmentsController assignmentsCtrl,
+    TourFileModel file,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: KazinColors.borderSubtle)),
       ),
       child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: KazinColors.redDanger,
-                  side: const BorderSide(color: KazinColors.redDanger),
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Get.toNamed(
-                    Routes.DECLINE_ASSIGNMENT,
-                    arguments: {"tourFile": file},
-                  );
-                },
-                child: const Text("Decline Assignment"),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: KazinColors.greenAcceptedText,
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  // 1. Add to Upcoming Assignments
-                  final assignmentsCtrl =
-                      Get.isRegistered<AssignmentsController>()
-                      ? Get.find<AssignmentsController>()
-                      : Get.put(AssignmentsController());
-                  assignmentsCtrl.addUpcomingAssignment(file);
-
-                  // 2. Remove assignment card from Notifications Screen
-                  if (Get.isRegistered<NotificationsController>()) {
-                    Get.find<NotificationsController>()
-                        .removeAssignmentNotification();
-                  }
-
-                  // 3. Remove red dot badge from navigation bar
-                  if (Get.isRegistered<KazinController>()) {
-                    Get.find<KazinController>().hasUnreadAlerts.value = false;
-                  }
-
-                  Get.back(); // Return to previous screen
-
-                  Get.snackbar(
-                    "Assignment Accepted!",
-                    "File #${file.enquiryNo} added to your Upcoming Assignments.",
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.white,
-                    colorText: KazinColors.greenAcceptedText,
-                    icon: const Icon(
-                      Icons.check_circle,
-                      color: KazinColors.greenAcceptedText,
+        child: Obx(
+          () => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Accept Assignment Action (Full Width Primary)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: KazinColors.greenAcceptedText,
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  );
-                },
-                child: const Text("Accept Assignment"),
+                  ),
+                  onPressed: assignmentsCtrl.isActionLoading.value
+                      ? null
+                      : () async {
+                          // 1. Call Accept API and check success result
+                          final bool isSuccess = await assignmentsCtrl
+                              .acceptTourFile(file);
+
+                          // 2. Sirf tabhi upcoming me add karo aur screen close karo jab API success de
+                          if (isSuccess) {
+                            assignmentsCtrl.addUpcomingAssignment(file);
+
+                            if (Get.isRegistered<NotificationsController>()) {
+                              Get.find<NotificationsController>()
+                                  .removeAssignmentNotification();
+                            }
+
+                            if (Get.isRegistered<KazinController>()) {
+                              Get.find<KazinController>()
+                                      .hasUnreadAlerts
+                                      .value =
+                                  false;
+                            }
+
+                            Get.back();
+                          }
+                        },
+                  child: assignmentsCtrl.isActionLoading.value
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Accept Assignment",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+
+              // 2. Decline Assignment Action (Full Width Outline -> Navigate to Decline Screen)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: KazinColors.redDanger,
+                    side: const BorderSide(color: KazinColors.redDanger),
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: assignmentsCtrl.isActionLoading.value
+                      ? null
+                      : () {
+                          Get.toNamed(
+                            Routes.DECLINE_ASSIGNMENT,
+                            arguments: {"tourFile": file},
+                          );
+                        },
+                  child: const Text(
+                    "Decline Assignment",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

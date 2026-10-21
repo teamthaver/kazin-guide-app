@@ -7,6 +7,7 @@ import 'package:kazin_guide_app/controllers/assignments_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
+import 'package:kazin_guide_app/models/tour_file_model.dart';
 import 'package:kazin_guide_app/screens/assignments/assignment_details_screen.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
@@ -96,34 +97,34 @@ class HomeDashboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Offline Sync Alert
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: KazinColors.blueInfoBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.cloud_done_outlined,
-                    size: 16,
-                    color: KazinColors.primaryBlue,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    "Almaty Dossier cached — Available offline",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: KazinColors.primaryNavy,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+            // Container(
+            //   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            //   decoration: BoxDecoration(
+            //     color: KazinColors.blueInfoBg,
+            //     borderRadius: BorderRadius.circular(10),
+            //   ),
+            //   child: const Row(
+            //     children: [
+            //       Icon(
+            //         Icons.cloud_done_outlined,
+            //         size: 16,
+            //         color: KazinColors.primaryBlue,
+            //       ),
+            //       SizedBox(width: 8),
+            //       Text(
+            //         "Almaty Dossier cached — Available offline",
+            //         style: TextStyle(
+            //           fontSize: 13,
+            //           fontWeight: FontWeight.w600,
+            //           color: KazinColors.primaryNavy,
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            // const SizedBox(height: 20),
 
-            // Operational Metric Boxes: Today, Upcoming, Completed
+            // Operational Metric Boxes
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -135,10 +136,6 @@ class HomeDashboardScreen extends StatelessWidget {
                 children: [
                   _buildMetricTile("1", "Live"),
                   const SizedBox(width: 8),
-                  // Controller ko inject karein (build method ke start me)
-
-                  // ...
-                  // Counters Row me static "0" ki jagah controller ki length bind karein:
                   Obx(
                     () => _buildMetricTile(
                       "${assignmentsCtrl.upcomingAssignments.length}",
@@ -151,8 +148,8 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
             // Active Dossier Card (Today's Tour Package)
-            // HomeDashboardScreen ke andar Active Dossier Card ko Obx me wrap karein:
             Obx(() {
               final file = arrivalCtrl.activeTourFile.value;
 
@@ -170,13 +167,23 @@ class HomeDashboardScreen extends StatelessWidget {
                 );
               }
 
-              // Check if file is closed
               final bool isFileClosed = file.status.toLowerCase().contains(
                 "closed",
               );
-              final nextStep = file.itinerary.firstWhereOrNull(
-                (s) => !s.isCompleted,
+
+              // Calculate current day index dynamically
+              final Map<String, List<ItineraryStepModel>> grouped = {};
+              for (var step in file.itinerary) {
+                final dateKey = step.date.split('T')[0];
+                if (dateKey.isNotEmpty) {
+                  grouped.putIfAbsent(dateKey, () => []).add(step);
+                }
+              }
+              final sortedDates = grouped.keys.toList()..sort();
+              final int currentDayIndex = arrivalCtrl.calculateInitialDayIndex(
+                sortedDates,
               );
+              final String currentDayBadge = "DAY-${currentDayIndex + 1}";
 
               return Card(
                 child: Padding(
@@ -208,7 +215,9 @@ class HomeDashboardScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              file.status.toUpperCase(),
+                              isFileClosed
+                                  ? file.status.toUpperCase()
+                                  : "${file.status.toUpperCase()} • $currentDayBadge",
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -265,33 +274,33 @@ class HomeDashboardScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      if (!isFileClosed && nextStep != null) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.flag_outlined,
-                              size: 16,
-                              color: KazinColors.secondaryTeal,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                "Next: ${nextStep.time} ${nextStep.title}",
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: KazinColors.secondaryTeal,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      // if (!isFileClosed && nextStep != null) ...[
+                      //   const SizedBox(height: 8),
+                      //   Row(
+                      //     children: [
+                      //       const Icon(
+                      //         Icons.flag_outlined,
+                      //         size: 16,
+                      //         color: KazinColors.secondaryTeal,
+                      //       ),
+                      //       const SizedBox(width: 6),
+                      //       Expanded(
+                      //         child: Text(
+                      //           "Next: ${nextStep.time} ${nextStep.title}",
+                      //           style: const TextStyle(
+                      //             fontSize: 13,
+                      //             fontWeight: FontWeight.w600,
+                      //             color: KazinColors.secondaryTeal,
+                      //           ),
+                      //           overflow: TextOverflow.ellipsis,
+                      //         ),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ],
                       const SizedBox(height: 16),
 
-                      // BUTTON LOGIC: Closed file me sirf View Dossier aayega, Open Live nahi!
+                      // Button Actions
                       if (isFileClosed)
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -316,8 +325,10 @@ class HomeDashboardScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                onPressed: () =>
-                                    Get.toNamed(Routes.LIVE_SERVICE),
+                                onPressed: () {
+                                  arrivalCtrl.resetToToday();
+                                  Get.toNamed(Routes.LIVE_SERVICE);
+                                },
                                 icon: const Icon(
                                   Icons.play_circle_fill,
                                   size: 18,
@@ -346,6 +357,7 @@ class HomeDashboardScreen extends StatelessWidget {
               );
             }),
             const SizedBox(height: 16),
+
             // Today's Pre-Service Checklist Card
             Card(
               child: Padding(
@@ -356,22 +368,46 @@ class HomeDashboardScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.fact_check_outlined,
                               size: 20,
                               color: KazinColors.secondaryTeal,
                             ),
-                            SizedBox(width: 8),
-                            Text(
-                              "Day 1 • Instructions",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: KazinColors.primaryNavy,
-                              ),
-                            ),
+                            const SizedBox(width: 8),
+                            // Dynamic Day match on Instructions
+                            Obx(() {
+                              final file = arrivalCtrl.activeTourFile.value;
+                              int displayDay = 1;
+                              if (file != null) {
+                                final Map<String, List<ItineraryStepModel>>
+                                grouped = {};
+                                for (var step in file.itinerary) {
+                                  final dateKey = step.date.split('T')[0];
+                                  if (dateKey.isNotEmpty) {
+                                    grouped
+                                        .putIfAbsent(dateKey, () => [])
+                                        .add(step);
+                                  }
+                                }
+                                final sortedDates = grouped.keys.toList()
+                                  ..sort();
+                                displayDay =
+                                    arrivalCtrl.calculateInitialDayIndex(
+                                      sortedDates,
+                                    ) +
+                                    1;
+                              }
+                              return Text(
+                                "Day $displayDay • Instructions",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: KazinColors.primaryNavy,
+                                ),
+                              );
+                            }),
                           ],
                         ),
                         // Live Progress Counter
@@ -415,16 +451,19 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                     const Divider(height: 20),
 
-                    // Interactive Checklist Items
+                    // Interactive Checklist Items (One-Way Tick: Can NOT untick once checked)
                     Obx(
                       () => Column(
                         children: ctrl.checklistState.entries.map((entry) {
                           final isChecked = entry.value;
                           return InkWell(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              ctrl.toggleChecklistItem(entry.key);
-                            },
+                            // Agar pehle se checked hai to tap disable kar diya
+                            onTap: isChecked
+                                ? null
+                                : () {
+                                    HapticFeedback.lightImpact();
+                                    ctrl.toggleChecklistItem(entry.key);
+                                  },
                             borderRadius: BorderRadius.circular(8),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
@@ -457,6 +496,12 @@ class HomeDashboardScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                  // if (isChecked)
+                                  //   const Icon(
+                                  //     Icons.lock_outline_rounded,
+                                  //     size: 14,
+                                  //     color: KazinColors.textMuted,
+                                  //   ),
                                 ],
                               ),
                             ),
