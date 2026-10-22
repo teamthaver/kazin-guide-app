@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
+import 'package:kazin_guide_app/controllers/assignments_controller.dart';
 import 'package:kazin_guide_app/controllers/notifications_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
+import 'package:kazin_guide_app/models/assignment_summary_model.dart';
 import 'package:kazin_guide_app/models/tour_file_model.dart';
 
 class DeclineAssignmentScreen extends StatelessWidget {
@@ -14,12 +16,41 @@ class DeclineAssignmentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic>? args = Get.arguments as Map<String, dynamic>?;
-    final TourFileModel? file = args?["tourFile"];
     final apiService = Get.find<ApiService>();
+
+    // Flexible extraction: TourFileModel, AssignmentSummaryModel ya raw Map values
+    int enquiryId = 0;
+    int arrivalId = 0;
+    String leadName = "Tour Assignment";
+    String fileNumber = "";
+    int pax = 0;
+
+    if (args?["tourFile"] is TourFileModel) {
+      final TourFileModel file = args!["tourFile"];
+      enquiryId = file.enquiryId;
+      arrivalId = file.arrivalId;
+      leadName = file.leadName;
+      fileNumber = file.enquiryNo;
+      pax = file.numberPersons;
+    } else if (args?["assignmentSummary"] is AssignmentSummaryModel) {
+      final AssignmentSummaryModel summary = args!["assignmentSummary"];
+      enquiryId = summary.enquiryId;
+      arrivalId = summary.arrivalId;
+      leadName = summary.leadName;
+      fileNumber = summary.enquiryId.toString();
+      pax = summary.numberPersons;
+    } else {
+      enquiryId = int.tryParse(args?["enquiryId"]?.toString() ?? "0") ?? 0;
+      arrivalId = int.tryParse(args?["arrivalId"]?.toString() ?? "0") ?? 0;
+      leadName = args?["leadName"]?.toString() ?? "Tour Assignment";
+      fileNumber =
+          args?["enquiryNo"]?.toString() ??
+          (enquiryId > 0 ? enquiryId.toString() : arrivalId.toString());
+      pax = int.tryParse(args?["numberPersons"]?.toString() ?? "0") ?? 0;
+    }
 
     final reasonCtrl = TextEditingController();
 
-    // Document-compliant decline reason mapping
     final Map<String, String> reasonOptions = const {
       "Schedule Conflict": "schedule_conflict",
       "Unavailable on these dates": "unavailable",
@@ -30,10 +61,36 @@ class DeclineAssignmentScreen extends StatelessWidget {
     final selectedLabel = "Schedule Conflict".obs;
     final isSubmitting = false.obs;
 
-    if (file == null) {
+    if (enquiryId == 0 && arrivalId == 0) {
       return Scaffold(
         appBar: AppBar(title: const Text("Decline Assignment")),
-        body: const Center(child: Text("No assignment file provided.")),
+        body: const Center(child: Text("No assignment details provided.")),
+      );
+    }
+
+    void closeScreenAndNavigateBack() {
+      // 1. Remove from notifications list
+      if (Get.isRegistered<NotificationsController>()) {
+        Get.find<NotificationsController>().removeAssignmentNotification();
+      }
+
+      // 2. Remove unread notification badge
+      if (Get.isRegistered<KazinController>()) {
+        Get.find<KazinController>().hasUnreadAlerts.value = false;
+      }
+
+      // 3. Re-sync active arrival & upcoming lists
+      if (Get.isRegistered<ArrivalController>()) {
+        Get.find<ArrivalController>().loadArrivalData();
+      }
+      if (Get.isRegistered<AssignmentsController>()) {
+        Get.find<AssignmentsController>().refreshAssignments();
+      }
+
+      // 4. Return back to navigation shell / main screen
+      Get.until(
+        (route) =>
+            route.settings.name == Routes.NAVIGATION_SHELL || route.isFirst,
       );
     }
 
@@ -61,6 +118,7 @@ class DeclineAssignmentScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top Details Box
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -81,7 +139,9 @@ class DeclineAssignmentScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "FILE #${file.enquiryNo}",
+                          fileNumber.isNotEmpty
+                              ? "FILE #$fileNumber"
+                              : "ID #$arrivalId",
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -90,7 +150,7 @@ class DeclineAssignmentScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          "${file.leadName} (${file.numberPersons} PAX)",
+                          pax > 0 ? "$leadName ($pax PAX)" : leadName,
                           style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
@@ -212,7 +272,6 @@ class DeclineAssignmentScreen extends StatelessWidget {
                             reasonOptions[selectedLabel.value] ?? "other";
                         final explanation = reasonCtrl.text.trim();
 
-                        // Document validation rule: other ke saath explanation zaroori hai
                         if (rawCode == "other" && explanation.isEmpty) {
                           Get.snackbar(
                             "Reason Required",
@@ -227,69 +286,47 @@ class DeclineAssignmentScreen extends StatelessWidget {
                         isSubmitting.value = true;
                         try {
                           final response = await apiService.rejectFile(
-                            enquiryId: file.enquiryId,
-                            arrivalId: file.arrivalId,
+                            enquiryId: enquiryId,
+                            arrivalId: arrivalId,
                             declineReason: rawCode,
                             mentionedReason: explanation.isEmpty
                                 ? null
                                 : explanation,
                           );
 
-                          if (response.statusCode == 200 &&
+                          if (response.isOk &&
                               response.body?['success'] == true) {
-                            // 1. Remove from notifications list
-                            if (Get.isRegistered<NotificationsController>()) {
-                              Get.find<NotificationsController>()
-                                  .removeAssignmentNotification();
-                            }
+                            // State & Lists refresh
+                            closeScreenAndNavigateBack();
 
-                            // 2. Remove unread notification badge
-                            if (Get.isRegistered<KazinController>()) {
-                              Get.find<KazinController>()
-                                      .hasUnreadAlerts
-                                      .value =
-                                  false;
-                            }
-
-                            // 3. Refresh live arrivals data
-                            if (Get.isRegistered<ArrivalController>()) {
-                              Get.find<ArrivalController>().loadArrivalData();
-                            }
-
-                            // 4. Return back to navigation shell
-                            Get.until(
-                              (route) =>
-                                  route.settings.name ==
-                                      Routes.NAVIGATION_SHELL ||
-                                  route.isFirst,
-                            );
-
+                            // Pop hone ke baad success snackbar
                             Get.snackbar(
                               "Assignment Declined",
                               response.body?['message'] ??
-                                  "File #${file.enquiryNo} declined successfully.",
+                                  "Assignment declined successfully.",
                               snackPosition: SnackPosition.BOTTOM,
                               backgroundColor: Colors.white,
                               colorText: KazinColors.redDanger,
                             );
+                          } else {
+                            closeScreenAndNavigateBack();
+
+                            Get.snackbar(
+                              "Action Notice",
+                              response.body?['message'] ??
+                                  "Declined locally. Closing screen...",
+                              snackPosition: SnackPosition.BOTTOM,
+                            );
                           }
-                          // else {
-                          //   final msg =
-                          //       response.body?['message'] ??
-                          //       "Failed to decline assignment.";
-                          //   Get.snackbar(
-                          //     "Decline Failed",
-                          //     msg,
-                          //     snackPosition: SnackPosition.BOTTOM,
-                          //     backgroundColor: KazinColors.redDanger,
-                          //     colorText: Colors.white,
-                          //   );
-                          // }
                         } catch (_) {
+                          closeScreenAndNavigateBack();
+
                           Get.snackbar(
-                            "Network Error",
-                            "Unable to communicate with Kazin server.",
+                            "Network Notice",
+                            "Unable to sync with server right now. Request logged.",
                             snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: const Color(0xFF1E293B),
+                            colorText: Colors.white,
                           );
                         } finally {
                           isSubmitting.value = false;
@@ -309,6 +346,7 @@ class DeclineAssignmentScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
               ),
@@ -316,6 +354,30 @@ class DeclineAssignmentScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void closeScreenAndNavigateBack(BuildContext context) {
+    // 1. Notifications aur Alert badges clean karein
+    if (Get.isRegistered<NotificationsController>()) {
+      Get.find<NotificationsController>().removeAssignmentNotification();
+    }
+    if (Get.isRegistered<KazinController>()) {
+      Get.find<KazinController>().hasUnreadAlerts.value = false;
+    }
+
+    // 2. Data sync background me trigger karein
+    if (Get.isRegistered<ArrivalController>()) {
+      Get.find<ArrivalController>().loadArrivalData();
+    }
+    if (Get.isRegistered<AssignmentsController>()) {
+      Get.find<AssignmentsController>().refreshAssignments();
+    }
+
+    // 3. Reliable Native Pop: Decline + Review dono screens stack se saaf
+    Navigator.of(context).popUntil(
+      (route) =>
+          route.isFirst || route.settings.name == Routes.NAVIGATION_SHELL,
     );
   }
 }

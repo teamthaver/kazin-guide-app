@@ -179,7 +179,7 @@ class ItineraryStepModel {
   }
 }
 
- class FlightDetailModel {
+class FlightDetailModel {
   final int id;
   final String flightNumber;
   final String departureAirport;
@@ -285,6 +285,9 @@ class RestaurantDetailModel {
   final String contactNumber;
   final String address;
   final String mapUrl;
+  final String openingTime;
+  final String closingTime;
+  final String date;
 
   RestaurantDetailModel({
     required this.id,
@@ -294,17 +297,29 @@ class RestaurantDetailModel {
     required this.contactNumber,
     required this.address,
     required this.mapUrl,
+    required this.openingTime,
+    required this.closingTime,
+    required this.date,
   });
 
   factory RestaurantDetailModel.fromJson(Map<String, dynamic> json) =>
       RestaurantDetailModel(
-        id: json['id'] ?? 0,
-        name: json['name'] ?? '',
-        cuisine: json['cuisine'] ?? 'Indian',
-        buffetType: json['buffet'] ?? 'Dinner',
-        contactNumber: json['contact_number'] ?? '',
-        address: json['restaurant_address'] ?? '',
-        mapUrl: json['map'] ?? '',
+        id: json['id'] ?? json['restaurant_id'] ?? 0,
+        name: json['name']?.toString() ?? '',
+        cuisine: json['cuisine']?.toString() ?? 'Indian',
+        buffetType:
+            json['buffet']?.toString() ??
+            json['buffet_type']?.toString() ??
+            'Dinner',
+        contactNumber: json['contact_number']?.toString() ?? '',
+        address:
+            json['restaurant_address']?.toString() ??
+            json['address']?.toString() ??
+            '',
+        mapUrl: json['map']?.toString() ?? json['map_url']?.toString() ?? '',
+        openingTime: json['opening_time']?.toString() ?? '',
+        closingTime: json['closing_time']?.toString() ?? '',
+        date: json['date']?.toString() ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -315,6 +330,9 @@ class RestaurantDetailModel {
     'contact_number': contactNumber,
     'restaurant_address': address,
     'map': mapUrl,
+    'opening_time': openingTime,
+    'closing_time': closingTime,
+    'date': date,
   };
 }
 

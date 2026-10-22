@@ -238,6 +238,14 @@ class ApiService extends GetConnect {
     return post("/api/guide/arrival", {"guide_id": guideId});
   }
 
+  Future<Response> loadUpcommingData({required int guideId}) {
+    return post("/api/guide/upcoming", {"guide_id": guideId});
+  }
+
+  Future<Response> loadCompletedData({required int guideId}) {
+    return post("/api/guide/completed", {"guide_id": guideId});
+  }
+
   // ==========================================
   // ACTION APIS (AS PER SPECIFICATION DOCUMENT)
   // ==========================================

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/auth_controller.dart';
 import 'package:kazin_guide_app/controllers/splash_controller.dart';
 import 'package:kazin_guide_app/core/bindings/navigation_binding.dart';
+import 'package:kazin_guide_app/screens/assignments/assignment_review_screen.dart';
 import 'package:kazin_guide_app/screens/document/document_wallet_screen.dart';
 import 'package:kazin_guide_app/screens/execution/live_active_service_screen.dart';
 import 'package:kazin_guide_app/screens/navigation/main_navigation_shell.dart';
@@ -174,6 +175,10 @@ class AppPages {
       page: () => const LiveActiveServiceScreen(),
       transition: Transition.fadeIn,
     ),
+    GetPage(
+      name: Routes.ASSIGNMENT_REVIEW,
+      page: () => const AssignmentReviewScreen(),
+    ),
   ];
 }
 
@@ -203,6 +208,7 @@ abstract class Routes {
   static const DOCUMENT_WALLET = _Paths.DOCUMENT_WALLET;
   static const SOP_HANDBOOK = _Paths.SOP_HANDBOOK;
   static const LIVE_SERVICE = _Paths.LIVE_SERVICE;
+  static const ASSIGNMENT_REVIEW = _Paths.ASSIGNMENT_REVIEW;
 }
 
 abstract class _Paths {
@@ -231,4 +237,5 @@ abstract class _Paths {
   static const DOCUMENT_WALLET = '/document-wallet';
   static const SOP_HANDBOOK = '/sop-handbook';
   static const LIVE_SERVICE = '/live-service';
+  static const ASSIGNMENT_REVIEW = '/assignment-review';
 }

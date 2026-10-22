@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kazin_guide_app/controllers/assignments_controller.dart';
 import 'package:kazin_guide_app/controllers/notifications_controller.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
-import 'package:kazin_guide_app/data/mock_upcoming_file.dart';
+import 'package:kazin_guide_app/models/assignment_summary_model.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -10,12 +11,16 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(NotificationsController());
+    final assignmentsCtrl = Get.isRegistered<AssignmentsController>()
+        ? Get.find<AssignmentsController>()
+        : Get.put(AssignmentsController());
 
     return Scaffold(
       backgroundColor: KazinColors.scaffoldBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: const Text(
           "Notifications",
           style: TextStyle(
@@ -28,6 +33,7 @@ class NotificationsScreen extends StatelessWidget {
       body: Column(
         children: [
           const SizedBox(height: 12),
+          // Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -65,31 +71,59 @@ class NotificationsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+
+          // Notification List Area
           Expanded(
             child: Obx(() {
               final activeFilter = controller.selectedFilter.value;
-              final showCard =
-                  controller.hasNewAssignment.value &&
-                  (activeFilter == "All" || activeFilter == "Assignments");
+              final isAssignmentFilter =
+                  activeFilter == "All" || activeFilter == "Assignments";
 
-              if (!showCard) {
+              // Real pending assignment items (jisme is_accepted == 0 hai)
+              final pendingList = assignmentsCtrl.pendingAssignments;
+
+              if (!isAssignmentFilter || pendingList.isEmpty) {
                 return const Center(
-                  child: Text(
-                    "No new notifications",
-                    style: TextStyle(
-                      color: KazinColors.textMuted,
-                      fontSize: 15,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.notifications_none_rounded,
+                        size: 48,
+                        color: KazinColors.textMuted,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "No new notifications",
+                        style: TextStyle(
+                          color: KazinColors.textMuted,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }
 
-              return ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+              return RefreshIndicator(
+                color: KazinColors.primaryNavy,
+                onRefresh: () => assignmentsCtrl.refreshAssignments(),
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: pendingList.length,
+                  itemBuilder: (context, index) {
+                    final item = pendingList[index];
+                    return _buildRealAssignmentNotificationCard(
+                      item,
+                      assignmentsCtrl,
+                      controller,
+                    );
+                  },
                 ),
-                children: [_buildAssignmentNotificationCard(controller)],
               );
             }),
           ),
@@ -98,23 +132,32 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAssignmentNotificationCard(NotificationsController controller) {
-    final file = mockUpcomingTourFile;
+  Widget _buildRealAssignmentNotificationCard(
+    AssignmentSummaryModel item,
+    AssignmentsController assignmentsCtrl,
+    NotificationsController controller,
+  ) {
+    final String formattedDate = assignmentsCtrl.formatDateRange(
+      item.checkInDate,
+      item.checkOutDate,
+    );
 
     return Card(
-      elevation: 1,
+      elevation: 0.5,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: KazinColors.borderSubtle),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => controller.openAssignmentDetails(file),
+        onTap: () => controller.openAssignmentDetails(item),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Badge & Review CTA
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -140,7 +183,7 @@ class NotificationsScreen extends StatelessWidget {
                           "NEW ASSIGNMENT",
                           style: TextStyle(
                             fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             color: KazinColors.primaryBlue,
                           ),
                         ),
@@ -152,7 +195,7 @@ class NotificationsScreen extends StatelessWidget {
                       Text(
                         "Review",
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: KazinColors.primaryBlue,
                         ),
@@ -167,36 +210,43 @@ class NotificationsScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+
+              // Lead Passenger Name & Pax
               Text(
-                "${file.leadName} (${file.numberPersons} PAX)",
+                "${item.leadName.isNotEmpty ? item.leadName : 'Group Tour'} (${item.numberPersons} PAX)",
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: KazinColors.primaryNavy,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                "4 Days / 3 Nights • Tbilisi & Mtskheta Tour",
-                style: TextStyle(
+
+              // Nights Info
+              Text(
+                "${item.numberOfNights} Nights Accommodation Scheduled",
+                style: const TextStyle(
                   fontSize: 13,
                   color: KazinColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 8),
+
+              // Date Range
               Row(
                 children: [
                   const Icon(
-                    Icons.calendar_month,
+                    Icons.calendar_month_outlined,
                     size: 15,
                     color: KazinColors.textSecondary,
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    "15 Nov 2026 → 18 Nov 2026",
-                    style: TextStyle(
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: KazinColors.primaryNavy,
                     ),
                   ),

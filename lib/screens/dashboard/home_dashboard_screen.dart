@@ -9,6 +9,7 @@ import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
 import 'package:kazin_guide_app/models/tour_file_model.dart';
 import 'package:kazin_guide_app/screens/assignments/assignment_details_screen.dart';
+import 'package:kazin_guide_app/widgets/sync_status_indicator.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
   const HomeDashboardScreen({super.key});
@@ -71,6 +72,11 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
                 Row(
                   children: [
+                    // Sync Symbol Animation (Same size as avatar: 40px)
+                    const SyncStatusIndicator(size: 40),
+                    const SizedBox(width: 10),
+
+                    // Profile Avatar
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: KazinColors.primaryNavy,
@@ -95,34 +101,6 @@ class HomeDashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-
-            // Offline Sync Alert
-            // Container(
-            //   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            //   decoration: BoxDecoration(
-            //     color: KazinColors.blueInfoBg,
-            //     borderRadius: BorderRadius.circular(10),
-            //   ),
-            //   child: const Row(
-            //     children: [
-            //       Icon(
-            //         Icons.cloud_done_outlined,
-            //         size: 16,
-            //         color: KazinColors.primaryBlue,
-            //       ),
-            //       SizedBox(width: 8),
-            //       Text(
-            //         "Almaty Dossier cached — Available offline",
-            //         style: TextStyle(
-            //           fontSize: 13,
-            //           fontWeight: FontWeight.w600,
-            //           color: KazinColors.primaryNavy,
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
-            // const SizedBox(height: 20),
 
             // Operational Metric Boxes
             Container(

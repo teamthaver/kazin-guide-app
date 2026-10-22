@@ -191,7 +191,31 @@ class ArrivalController extends GetxController {
     );
   }
 
-  // --- POST /api/action/mark-completed ---
+  // Helper: Scheduled time aur current time ka difference (minutes me)
+  int _calculateDelayInMinutes(String stepDate, String stepTime) {
+    try {
+      // stepDate formats: "2026-10-14" ya "2026-10-14T00:00:00"
+      final dateOnly = stepDate.split('T')[0];
+      final timeParts = stepTime.trim().split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+
+      final scheduledDateTime = DateTime(
+        int.parse(dateOnly.split('-')[0]),
+        int.parse(dateOnly.split('-')[1]),
+        int.parse(dateOnly.split('-')[2]),
+        hour,
+        minute,
+      );
+
+      final now = DateTime.now();
+      return now.difference(scheduledDateTime).inMinutes;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  // --- POST /api/action/mark-completed With Offline Delay Detection ---
   Future<void> submitMarkCompleted({
     required int itineraryId,
     required int arrivalId,
@@ -199,9 +223,33 @@ class ArrivalController extends GetxController {
     File? imageFile,
   }) async {
     final now = DateTime.now();
-    // Document rule: Local "YYYY-MM-DD HH:MM"
     final currentTime =
         "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+
+    // Step dhundein taaki schedule date/time verify kiya ja sake
+    final current = activeTourFile.value;
+    final step = current?.itinerary.firstWhereOrNull(
+      (s) => s.id == itineraryId,
+    );
+
+    // 1. Client-Side Check: Agar delay reason abhi tak nahi diya aur activity >15 min late hai
+    if ((delayReason == null || delayReason.trim().isEmpty) && step != null) {
+      final delayMins = _calculateDelayInMinutes(step.date, step.time);
+      // Agar backend rule 15 minutes ka hai aur guide late hai:
+      if (delayMins > 15) {
+        _promptDelayReason(
+          itineraryId: itineraryId,
+          arrivalId: arrivalId,
+          imageFile: imageFile,
+          delayedMinutes: delayMins.toString(),
+        );
+        return; // Dialog submit hone ke baad dobara call hoga reason ke saath
+      }
+    }
+
+    // 2. Step ko SQLite aur screen par complete mark karein
+    await _dbService.updateStepStatus(itineraryId, true);
+    _updateInMemoryStepStatus(itineraryId, true);
 
     isLoading.value = true;
     try {
@@ -214,10 +262,6 @@ class ArrivalController extends GetxController {
       );
 
       if (response.statusCode == 200 && response.body?['success'] == true) {
-        // Update SQLite and Reactive State
-        await _dbService.updateStepStatus(itineraryId, true);
-        _updateInMemoryStepStatus(itineraryId, true);
-
         Get.snackbar(
           "Checkpoint Completed",
           response.body?['message'] ?? "Activity marked as completed.",
@@ -227,7 +271,7 @@ class ArrivalController extends GetxController {
         );
       } else if (response.statusCode == 400 &&
           response.body?['message'] == "Provide delay reason.") {
-        // Guide late condition - prompt for mandatory delay reason
+        // Agar server online time par extra delay pakadta hai
         final delayedMinutes =
             response.body?['delayed_by_minutes']?.toString() ?? "";
         _promptDelayReason(
@@ -236,20 +280,72 @@ class ArrivalController extends GetxController {
           imageFile: imageFile,
           delayedMinutes: delayedMinutes,
         );
+      } else {
+        // Server unavailable -> Save to queue with reason
+        await _queueForSync(
+          itineraryId,
+          arrivalId,
+          currentTime,
+          delayReason,
+          imageFile,
+        );
       }
-      //  else {
-      //   final message =
-      //       response.body?['message'] ?? "Failed to mark activity completed.";
-      //   Get.snackbar("Notice", message, snackPosition: SnackPosition.BOTTOM);
-      // }
     } catch (_) {
-      Get.snackbar(
-        "Error",
-        "Unable to submit checkpoint completion.",
-        snackPosition: SnackPosition.BOTTOM,
+      // Network Exception (Offline) -> Save to SQLite Queue with reason
+      await _queueForSync(
+        itineraryId,
+        arrivalId,
+        currentTime,
+        delayReason,
+        imageFile,
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _queueForSync(
+    int itineraryId,
+    int arrivalId,
+    String currentTime,
+    String? delayReason,
+    File? imageFile,
+  ) async {
+    await _dbService.queueOfflineAction(
+      actionType: 'mark_completed',
+      payload: {
+        'itinerary_id': itineraryId,
+        'arrival_id': arrivalId,
+        'current_time': currentTime,
+        'delay_reason': delayReason,
+      },
+      imagePaths: imageFile != null ? [imageFile.path] : [],
+    );
+
+    Get.snackbar(
+      "Saved Offline",
+      "Activity marked complete. Will sync automatically when online.",
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF1E293B),
+      colorText: Colors.white,
+      icon: const Icon(Icons.cloud_off_rounded, color: Colors.white),
+    );
+  }
+
+  // Helper to format minutes into human readable hours & minutes
+  String _formatDelayDuration(String delayedMinutes) {
+    final totalMins = int.tryParse(delayedMinutes) ?? 0;
+    if (totalMins <= 0) return "";
+
+    final hours = totalMins ~/ 60;
+    final mins = totalMins % 60;
+
+    if (hours > 0 && mins > 0) {
+      return "${hours}h ${mins}m";
+    } else if (hours > 0) {
+      return "${hours}h";
+    } else {
+      return "${mins}m";
     }
   }
 
@@ -260,80 +356,213 @@ class ArrivalController extends GetxController {
     required String delayedMinutes,
   }) {
     final reasonCtrl = TextEditingController();
+    final formattedDelay = _formatDelayDuration(delayedMinutes);
 
-    Get.defaultDialog(
-      title: "Delay Reason Required",
-      titleStyle: const TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.bold,
-        color: KazinColors.primaryNavy,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            delayedMinutes.isNotEmpty
-                ? "This activity is being completed $delayedMinutes minutes after scheduled time. Please state reason:"
-                : "Activity is delayed. Please specify the delay reason:",
-            style: const TextStyle(
-              fontSize: 13,
-              color: KazinColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: reasonCtrl,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: "e.g. Heavy traffic, guest request, weather...",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with Warning Icon & Title
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: KazinColors.amberWarningBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.schedule_rounded,
+                      color: KazinColors.amberWarningText,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      "Delay ",
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: KazinColors.primaryNavy,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              contentPadding: const EdgeInsets.all(10),
-            ),
+              const SizedBox(height: 16),
+
+              // Time badge container with Hours & Minutes
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: KazinColors.scaffoldBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: KazinColors.borderSubtle),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: KazinColors.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        formattedDelay.isNotEmpty
+                            ? "Activity is completing $formattedDelay past the scheduled time."
+                            : "This activity is completing behind schedule.",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: KazinColors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              const Text(
+                "Reason for Delay Log *",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: KazinColors.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Modern Text Field
+              TextField(
+                controller: reasonCtrl,
+                maxLines: 3,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: KazinColors.primaryNavy,
+                ),
+                decoration: InputDecoration(
+                  hintText:
+                      "e.g., Guest request, heavy traffic, weather delay...",
+                  hintStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                    color: KazinColors.textMuted,
+                  ),
+                  filled: true,
+                  fillColor: KazinColors.scaffoldBg,
+                  contentPadding: const EdgeInsets.all(12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: KazinColors.borderSubtle,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: KazinColors.primaryNavy,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Action Buttons Row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: KazinColors.textSecondary,
+                        minimumSize: const Size.fromHeight(46),
+                        side: const BorderSide(color: KazinColors.borderSubtle),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Get.back(),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KazinColors.primaryNavy,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        final reason = reasonCtrl.text.trim();
+                        if (reason.isEmpty) {
+                          Get.snackbar(
+                            "Required Field",
+                            "Please provide a delay reason to continue.",
+                            snackPosition: SnackPosition.BOTTOM,
+                            backgroundColor: KazinColors.redDanger,
+                            colorText: Colors.white,
+                            margin: const EdgeInsets.all(16),
+                            borderRadius: 12,
+                          );
+                          return;
+                        }
+                        Get.back();
+                        submitMarkCompleted(
+                          itineraryId: itineraryId,
+                          arrivalId: arrivalId,
+                          delayReason: reason,
+                          imageFile: imageFile,
+                        );
+                      },
+                      child: const Text(
+                        "Submit Checkpoint",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
-      confirm: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: KazinColors.primaryNavy,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: () {
-          if (reasonCtrl.text.trim().isEmpty) {
-            Get.snackbar(
-              "Alert",
-              "Delay reason cannot be empty.",
-              snackPosition: SnackPosition.BOTTOM,
-            );
-            return;
-          }
-          Get.back();
-          submitMarkCompleted(
-            itineraryId: itineraryId,
-            arrivalId: arrivalId,
-            delayReason: reasonCtrl.text.trim(),
-            imageFile: imageFile,
-          );
-        },
-        child: const Text(
-          "Submit with Reason",
-          style: TextStyle(color: Colors.white),
         ),
       ),
-      cancel: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: () => Get.back(),
-        child: const Text("Cancel"),
-      ),
+      barrierDismissible: false,
     );
   }
 
-  // Fallback direct toggle for offline/manual checkbox
   Future<void> toggleStepCompletion(int stepId, bool currentStatus) async {
     await _dbService.updateStepStatus(stepId, !currentStatus);
     _updateInMemoryStepStatus(stepId, !currentStatus);

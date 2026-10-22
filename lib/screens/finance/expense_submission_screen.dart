@@ -31,6 +31,7 @@ class ExpenseSubmissionScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -180,8 +181,9 @@ class ExpenseSubmissionScreen extends StatelessWidget {
                                   ),
                                 ],
                                 onChanged: (val) {
-                                  if (val != null)
+                                  if (val != null) {
                                     ctrl.selectedCurrency.value = val;
+                                  }
                                 },
                               ),
                             ),
@@ -375,36 +377,70 @@ class ExpenseSubmissionScreen extends StatelessWidget {
   void _showImageSourceSheet(BuildContext context, ExpenseController ctrl) {
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(
-                Icons.camera_alt_outlined,
-                color: KazinColors.primaryNavy,
-              ),
-              title: const Text("Take Photo with Camera"),
-              onTap: () {
-                Get.back();
-                ctrl.pickReceipt(ImageSource.camera);
-              },
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Wrap(
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: KazinColors.borderSubtle,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: KazinColors.primaryNavy,
+                  ),
+                  title: const Text(
+                    "Take Photo with Camera",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: KazinColors.primaryNavy,
+                    ),
+                  ),
+                  onTap: () {
+                    Get.back();
+                    ctrl.pickReceipt(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: const Icon(
+                    Icons.photo_library_outlined,
+                    color: KazinColors.primaryNavy,
+                  ),
+                  title: const Text(
+                    "Select from Gallery",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: KazinColors.primaryNavy,
+                    ),
+                  ),
+                  onTap: () {
+                    Get.back();
+                    ctrl.pickReceipt(ImageSource.gallery);
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(
-                Icons.photo_library_outlined,
-                color: KazinColors.primaryNavy,
-              ),
-              title: const Text("Select from Gallery"),
-              onTap: () {
-                Get.back();
-                ctrl.pickReceipt(ImageSource.gallery);
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );

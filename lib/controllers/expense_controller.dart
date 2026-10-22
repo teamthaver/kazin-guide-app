@@ -4,13 +4,15 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
+import 'package:kazin_guide_app/core/services/db_service.dart';
+import 'package:kazin_guide_app/core/services/network_sync_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
 
 class ExpenseController extends GetxController {
   final ApiService _apiService = Get.find<ApiService>();
+  final DbService _dbService = DbService.instance;
   final ImagePicker _picker = ImagePicker();
 
-  // Document allowed categories
   final List<String> categories = [
     'Fuel',
     'Parking',
@@ -38,6 +40,15 @@ class ExpenseController extends GetxController {
     savedController.dispose();
     notesController.dispose();
     super.onClose();
+  }
+
+  void clearForm() {
+    amountController.clear();
+    savedController.clear();
+    notesController.clear();
+    receiptFiles.clear();
+    selectedCategory.value = categories.first;
+    selectedCurrency.value = 'GEL';
   }
 
   Future<void> pickReceipt(ImageSource source) async {
@@ -99,48 +110,98 @@ class ExpenseController extends GetxController {
 
     final double savedAmount =
         double.tryParse(savedController.text.trim()) ?? 0.0;
+    final categoryLower = selectedCategory.value.toLowerCase();
+    final currencyUpper = selectedCurrency.value.toUpperCase();
+    final remarksText = notesController.text.trim().isEmpty
+        ? null
+        : notesController.text.trim();
 
     isSubmitting.value = true;
-    try {
-      final response = await _apiService.addExpense(
-        arrivalId: activeFile.arrivalId,
-        category: selectedCategory.value
-            .toLowerCase(), // Document required lowercase
-        currency: selectedCurrency.value.toUpperCase(),
-        spent: spentAmount,
-        saved: savedAmount,
-        remarks: notesController.text.trim().isEmpty
-            ? null
-            : notesController.text.trim(),
-        receiptFiles: receiptFiles.toList(),
-      );
 
-      if (response.statusCode == 201 && response.body?['success'] == true) {
-        Get.back();
-        Get.snackbar(
-          "Expense Recorded",
-          response.body?['message'] ?? "Expense added successfully.",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: KazinColors.greenAcceptedBg,
-          colorText: KazinColors.greenAcceptedText,
+    final bool isOnline = Get.isRegistered<NetworkSyncService>()
+        ? Get.find<NetworkSyncService>().isOnline.value
+        : true;
+
+    try {
+      if (isOnline) {
+        final response = await _apiService.addExpense(
+          arrivalId: activeFile.arrivalId,
+          category: categoryLower,
+          currency: currencyUpper,
+          spent: spentAmount,
+          saved: savedAmount,
+          remarks: remarksText,
+          receiptFiles: receiptFiles.toList(),
         );
-      } else {
-        final message =
-            response.body?['message'] ?? "Unable to submit expense.";
-        Get.snackbar(
-          "Submission Failed",
-          message,
-          snackPosition: SnackPosition.BOTTOM,
-        );
+
+        // 200 ya 201 dono success mane jayenge
+        if (response.isOk && response.body?['success'] == true) {
+          clearForm();
+          Get.back();
+          Get.snackbar(
+            "Expense Recorded",
+            response.body?['message'] ?? "Expense added successfully.",
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: KazinColors.greenAcceptedBg,
+            colorText: KazinColors.greenAcceptedText,
+          );
+          return;
+        }
       }
+
+      // Offline ya server failure fallback
+      await _queueExpenseOffline(
+        activeFile.arrivalId,
+        categoryLower,
+        currencyUpper,
+        spentAmount,
+        savedAmount,
+        remarksText,
+      );
     } catch (_) {
-      Get.snackbar(
-        "Error",
-        "Network connection failed.",
-        snackPosition: SnackPosition.BOTTOM,
+      await _queueExpenseOffline(
+        activeFile.arrivalId,
+        categoryLower,
+        currencyUpper,
+        spentAmount,
+        savedAmount,
+        remarksText,
       );
     } finally {
       isSubmitting.value = false;
     }
+  }
+
+  Future<void> _queueExpenseOffline(
+    int arrivalId,
+    String category,
+    String currency,
+    double spent,
+    double saved,
+    String? remarks,
+  ) async {
+    await _dbService.queueOfflineAction(
+      actionType: 'add_expense',
+      payload: {
+        'arrival_id': arrivalId,
+        'category': category,
+        'currency': currency,
+        'spent': spent,
+        'saved': saved,
+        'remarks': remarks,
+      },
+      imagePaths: receiptFiles.map((f) => f.path).toList(),
+    );
+
+    clearForm();
+    Get.back();
+    Get.snackbar(
+      "Saved Offline",
+      "Expense recorded locally. Will sync when back online.",
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: const Color(0xFF1E293B),
+      colorText: Colors.white,
+      icon: const Icon(Icons.cloud_off_rounded, color: Colors.white),
+    );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
-import 'package:kazin_guide_app/models/tour_file_model.dart';
+import 'package:kazin_guide_app/models/assignment_summary_model.dart';
 
 class NotificationsController extends GetxController {
   final filters = ["All", "Assignments", "Changes", "Reminders", "Urgent"];
@@ -16,10 +16,11 @@ class NotificationsController extends GetxController {
     hasNewAssignment.value = false;
   }
 
-  void openAssignmentDetails(TourFileModel file) {
+  // Nayi AssignmentReviewScreen par Summary object pass karein
+  void openAssignmentDetails(AssignmentSummaryModel item) {
     Get.toNamed(
-      Routes.ASSIGNMENT_DETAILS,
-      arguments: {"tourFile": file, "isNewAssignment": true},
+      Routes.ASSIGNMENT_REVIEW,
+      arguments: {"assignmentSummary": item},
     );
   }
 }

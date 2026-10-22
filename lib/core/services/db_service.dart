@@ -19,32 +19,37 @@ class DbService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgradeDB,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
-  CREATE TABLE tour_files (
-    arrival_id INTEGER PRIMARY KEY,
-    enquiry_id INTEGER,
-    enquiry_no TEXT,
-    lead_name TEXT,
-    lead_contact TEXT,
-    status TEXT,
-    number_persons INTEGER,
-    check_in_date TEXT,
-    check_out_date TEXT,
-    number_of_nights TEXT,
-    driver_name TEXT,
-    driver_phone TEXT,
-    vehicle_name TEXT,
-    vehicle_type TEXT,
-    vehicle_capacity INTEGER,
-    hotel_name TEXT,
-    hotel_city TEXT,
-    full_json_blob TEXT
-  )
-''');
+      CREATE TABLE tour_files (
+        arrival_id INTEGER PRIMARY KEY,
+        enquiry_id INTEGER,
+        enquiry_no TEXT,
+        lead_name TEXT,
+        lead_contact TEXT,
+        status TEXT,
+        number_persons INTEGER,
+        check_in_date TEXT,
+        check_out_date TEXT,
+        number_of_nights TEXT,
+        driver_name TEXT,
+        driver_phone TEXT,
+        vehicle_name TEXT,
+        vehicle_type TEXT,
+        vehicle_capacity INTEGER,
+        hotel_name TEXT,
+        hotel_city TEXT,
+        full_json_blob TEXT
+      )
+    ''');
 
     await db.execute('''
       CREATE TABLE itinerary_steps (
@@ -59,8 +64,54 @@ class DbService {
         FOREIGN KEY (arrival_id) REFERENCES tour_files (arrival_id) ON DELETE CASCADE
       )
     ''');
+
+    await _createQueueTable(db);
   }
 
+  Future<void> _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createQueueTable(db);
+    }
+  }
+
+  Future<void> _createQueueTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        image_paths TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  // --- Sync Queue CRUD Methods ---
+  Future<int> queueOfflineAction({
+    required String actionType,
+    required Map<String, dynamic> payload,
+    List<String> imagePaths = const [],
+  }) async {
+    final db = await database;
+    return await db.insert('sync_queue', {
+      'action_type': actionType,
+      'payload': jsonEncode(payload),
+      'image_paths': jsonEncode(imagePaths),
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingSyncActions() async {
+    final db = await database;
+    return await db.query('sync_queue', orderBy: 'id ASC');
+  }
+
+  Future<void> removeQueueAction(int id) async {
+    final db = await database;
+    await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- Tour Files & Itinerary Methods ---
   Future<void> saveTourFile(TourFileModel tourFile) async {
     final db = await instance.database;
 
@@ -138,5 +189,6 @@ class DbService {
     final db = await instance.database;
     await db.delete('itinerary_steps');
     await db.delete('tour_files');
+    await db.delete('sync_queue');
   }
 }

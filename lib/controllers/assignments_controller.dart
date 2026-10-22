@@ -1,22 +1,33 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/core/routes/app_pages.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
+import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
+import 'package:kazin_guide_app/models/assignment_summary_model.dart';
 import 'package:kazin_guide_app/models/tour_file_model.dart';
-import 'package:kazin_guide_app/screens/assignments/assignment_details_screen.dart';
 
 class AssignmentsController extends GetxController
     with GetSingleTickerProviderStateMixin {
   late final TabController tabController;
   final ArrivalController arrivalCtrl = Get.find<ArrivalController>();
   final ApiService _apiService = Get.find<ApiService>();
+  final AuthService _authService = Get.find<AuthService>();
 
   final selectedTabIndex = 0.obs;
   final isActionLoading = false.obs;
+  final isFetchingLists = false.obs;
 
-  final upcomingFilesList = <TourFileModel>[].obs;
+  // 1. Unaccepted files (is_accepted == 0) -> Alerts / Action required section ke liye
+  final pendingAssignments = <AssignmentSummaryModel>[].obs;
+
+  // 2. Confirmed upcoming files (is_accepted == 1) -> Upcoming Tab ke liye
+  final upcomingAssignments = <AssignmentSummaryModel>[].obs;
+
+  // 3. Completed tour files -> Completed Tab ke liye
+  final completedAssignments = <AssignmentSummaryModel>[].obs;
 
   @override
   void onInit() {
@@ -25,43 +36,151 @@ class AssignmentsController extends GetxController
     tabController.addListener(() {
       selectedTabIndex.value = tabController.index;
     });
+    fetchAllData();
   }
 
-  TourFileModel? get activeFile => arrivalCtrl.activeTourFile.value;
-  bool get isLoading => arrivalCtrl.isLoading.value;
+  bool get isLoading => arrivalCtrl.isLoading.value || isFetchingLists.value;
 
+  TourFileModel? get activeFile => arrivalCtrl.activeTourFile.value;
+
+  // ACTIVE TAB: Sirf actual arrival/active file jo closed ya cancelled nahi hai
   List<TourFileModel> get activeAssignments {
     final file = activeFile;
     if (file == null) return [];
-    final status = file.status.toLowerCase();
-    if (status.contains("active") ||
-        status.contains("live") ||
-        status.contains("assigned")) {
-      return [file];
+
+    final status = file.status.toLowerCase().trim();
+    if (status.contains("closed") ||
+        status.contains("completed") ||
+        status.contains("cancelled") ||
+        status.contains("rejected")) {
+      return [];
     }
-    return [];
+
+    return [file];
   }
 
-  List<TourFileModel> get upcomingAssignments => upcomingFilesList;
+  // Teeno APIs sync karein
+  Future<void> fetchAllData() async {
+    isFetchingLists.value = true;
+    try {
+      await arrivalCtrl.loadArrivalData();
 
-  List<TourFileModel> get completedAssignments {
-    final file = activeFile;
-    if (file == null) return [];
-    final status = file.status.toLowerCase();
-    if (status.contains("closed") || status.contains("completed")) {
-      return [file];
+      await Future.wait([
+        fetchUpcomingAssignments(),
+        fetchCompletedAssignments(),
+      ]);
+    } catch (e) {
+      log("Error loading all assignments: $e");
+    } finally {
+      isFetchingLists.value = false;
     }
-    return [];
   }
 
-  void addUpcomingAssignment(TourFileModel file) {
-    if (!upcomingFilesList.any((f) => f.arrivalId == file.arrivalId)) {
-      upcomingFilesList.add(file);
+  // Upcoming API Fetching (/api/guide/upcoming) & Splitting based on is_accepted
+  Future<void> fetchUpcomingAssignments() async {
+    try {
+      final res = await _apiService.loadUpcommingData(
+        guideId: _authService.guideId,
+      );
+
+      log("📥 [UPCOMING API RESPONSE]: ${res.body}");
+
+      if (res.isOk && res.body != null && res.body['success'] == true) {
+        final List list = res.body['data'] ?? [];
+        final unacceptedList = <AssignmentSummaryModel>[];
+        final acceptedUpcomingList = <AssignmentSummaryModel>[];
+
+        final currentActiveArrivalId = activeFile?.arrivalId ?? 0;
+        final activeStatus = activeFile?.status.toLowerCase().trim() ?? "";
+        final isExecutionLive =
+            activeStatus == "active" || activeStatus == "live";
+
+        for (var item in list) {
+          try {
+            final summary = AssignmentSummaryModel.fromJson(item);
+
+            // Agar same file abhi execute ho rahi hai, to usko skip karein
+            if (currentActiveArrivalId > 0 &&
+                summary.arrivalId == currentActiveArrivalId &&
+                isExecutionLive) {
+              continue;
+            }
+
+            // is_accepted ke basis par divide karein
+            if (summary.isAccepted == 0) {
+              unacceptedList.add(summary); // Alerts & Review section
+            } else {
+              acceptedUpcomingList.add(summary); // Confirmed Upcoming list
+            }
+          } catch (err) {
+            log("❌ [UPCOMING PARSE ERROR]: $err | data: $item");
+          }
+        }
+
+        pendingAssignments.assignAll(unacceptedList);
+        upcomingAssignments.assignAll(acceptedUpcomingList);
+
+        log(
+          "✅ [ASSIGNMENTS SPLIT]: Pending Alert = ${pendingAssignments.length}, Upcoming = ${upcomingAssignments.length}",
+        );
+      }
+    } catch (e) {
+      log("❌ [UPCOMING EXCEPTION]: $e");
+    }
+  }
+
+  // Completed API Fetching (/api/guide/completed)
+  Future<void> fetchCompletedAssignments() async {
+    try {
+      final res = await _apiService.loadCompletedData(
+        guideId: _authService.guideId,
+      );
+
+      if (res.isOk && res.body != null && res.body['success'] == true) {
+        final List list = res.body['data'] ?? [];
+        final parsedList = <AssignmentSummaryModel>[];
+
+        for (var item in list) {
+          try {
+            parsedList.add(AssignmentSummaryModel.fromJson(item));
+          } catch (err) {
+            log("Error parsing completed item: $err | data: $item");
+          }
+        }
+
+        completedAssignments.assignAll(parsedList);
+      }
+    } catch (e) {
+      log("Error fetching completed assignments: $e");
     }
   }
 
   Future<void> refreshAssignments() async {
-    await arrivalCtrl.loadArrivalData();
+    await fetchAllData();
+  }
+
+  String formatDateRange(String checkIn, String checkOut) {
+    try {
+      final inDt = DateTime.parse(checkIn);
+      final outDt = DateTime.parse(checkOut);
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      return "${inDt.day} ${months[inDt.month - 1]} - ${outDt.day} ${months[outDt.month - 1]} ${outDt.year}";
+    } catch (_) {
+      return "$checkIn → $checkOut";
+    }
   }
 
   void openLiveService(TourFileModel file) {
@@ -69,27 +188,23 @@ class AssignmentsController extends GetxController
     Get.toNamed(Routes.LIVE_SERVICE);
   }
 
-  void viewDossier(TourFileModel file) {
-    Get.to(() => AssignmentDetailsScreen(tourFile: file));
-  }
-
-  bool isFileClosed(TourFileModel file) {
-    final status = file.status.toLowerCase();
-    return status.contains("closed") || status.contains("completed");
-  }
-
-  // --- POST /api/action/accept-file ---
-  // lib/controllers/assignments_controller.dart
-
-  Future<bool> acceptTourFile(TourFileModel file) async {
+  // Accept File via ApiService -> Success hone par fetchUpcomingAssignments() se lists re-sync honge
+  Future<bool> acceptTourFile(dynamic fileOrSummary) async {
     isActionLoading.value = true;
+    final int enquiryId = fileOrSummary is TourFileModel
+        ? fileOrSummary.enquiryId
+        : (fileOrSummary as AssignmentSummaryModel).enquiryId;
+    final int arrivalId = fileOrSummary is TourFileModel
+        ? fileOrSummary.arrivalId
+        : (fileOrSummary as AssignmentSummaryModel).arrivalId;
+
     try {
       final response = await _apiService.acceptFile(
-        enquiryId: file.enquiryId,
-        arrivalId: file.arrivalId,
+        enquiryId: enquiryId,
+        arrivalId: arrivalId,
       );
 
-      if (response.statusCode == 200 && response.body?['success'] == true) {
+      if (response.isOk && response.body?['success'] == true) {
         Get.snackbar(
           "Assignment Accepted",
           response.body?['message'] ?? "File accepted successfully.",
@@ -97,13 +212,12 @@ class AssignmentsController extends GetxController
           backgroundColor: KazinColors.greenAcceptedBg,
           colorText: KazinColors.greenAcceptedText,
         );
-        await refreshAssignments();
-        return true; // Success hone par true return karein
-      } else {
-        // final message = response.body?['message'] ?? "Unable to accept file.";
-        // Get.snackbar("Notice", message, snackPosition: SnackPosition.BOTTOM);
-        return false;
+
+        // Upcoming API dobara call karke lists sync karein
+        await fetchUpcomingAssignments();
+        return true;
       }
+      return false;
     } catch (_) {
       Get.snackbar(
         "Error",
@@ -116,163 +230,49 @@ class AssignmentsController extends GetxController
     }
   }
 
-  // --- POST /api/action/reject-file Dialog & Execution ---
-  void showRejectDialog(TourFileModel file) {
-    String selectedReason = 'schedule_conflict';
-    final otherReasonCtrl = TextEditingController();
-    final isOtherSelected = false.obs;
-
-    Get.defaultDialog(
-      title: "Decline Assignment",
-      titleStyle: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: KazinColors.primaryNavy,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      content: StatefulBuilder(
-        builder: (context, setLocalState) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Please select a reason for declining this assignment:",
-                style: TextStyle(
-                  fontSize: 13,
-                  color: KazinColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedReason,
-                decoration: InputDecoration(
-                  labelText: "Decline Reason",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'schedule_conflict',
-                    child: Text("Schedule Conflict"),
-                  ),
-                  DropdownMenuItem(
-                    value: 'unavailable',
-                    child: Text("Unavailable"),
-                  ),
-                  DropdownMenuItem(
-                    value: 'location_issue',
-                    child: Text("Location Issue"),
-                  ),
-                  DropdownMenuItem(value: 'other', child: Text("Other")),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setLocalState(() {
-                      selectedReason = val;
-                      isOtherSelected.value = (val == 'other');
-                    });
-                  }
-                },
-              ),
-              Obx(
-                () => isOtherSelected.value
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: TextField(
-                          controller: otherReasonCtrl,
-                          maxLines: 2,
-                          decoration: InputDecoration(
-                            hintText: "Specify reason...",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            contentPadding: const EdgeInsets.all(10),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          );
-        },
-      ),
-      confirm: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: KazinColors.redDanger,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: () async {
-          if (selectedReason == 'other' &&
-              otherReasonCtrl.text.trim().isEmpty) {
-            Get.snackbar(
-              "Missing Reason",
-              "Please specify your reason for declining.",
-              snackPosition: SnackPosition.BOTTOM,
-            );
-            return;
-          }
-          Get.back();
-          await _performReject(
-            file: file,
-            declineReason: selectedReason,
-            mentionedReason: otherReasonCtrl.text.trim(),
-          );
-        },
-        child: const Text(
-          "Decline File",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      cancel: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: () => Get.back(),
-        child: const Text("Cancel"),
-      ),
-    );
-  }
-
-  Future<void> _performReject({
-    required TourFileModel file,
+  // Reject / Decline file action
+  Future<bool> declineTourFile({
+    required int enquiryId,
+    required int arrivalId,
     required String declineReason,
     String? mentionedReason,
   }) async {
     isActionLoading.value = true;
     try {
       final response = await _apiService.rejectFile(
-        enquiryId: file.enquiryId,
-        arrivalId: file.arrivalId,
+        enquiryId: enquiryId,
+        arrivalId: arrivalId,
         declineReason: declineReason,
         mentionedReason: mentionedReason,
       );
 
-      if (response.statusCode == 200 && response.body?['success'] == true) {
+      if (response.isOk && response.body?['success'] == true) {
         Get.snackbar(
-          "Declined",
+          "Assignment Declined",
           response.body?['message'] ?? "Assignment declined.",
           snackPosition: SnackPosition.BOTTOM,
         );
-        await refreshAssignments();
-      } else {
-        final message = response.body?['message'] ?? "Unable to decline file.";
-        Get.snackbar("Notice", message, snackPosition: SnackPosition.BOTTOM);
+
+        // Reject hone ke baad bhi lists sync karein
+        await fetchUpcomingAssignments();
+        return true;
       }
+      return false;
     } catch (_) {
       Get.snackbar(
         "Error",
         "Network connection failed.",
         snackPosition: SnackPosition.BOTTOM,
       );
+      return false;
     } finally {
       isActionLoading.value = false;
     }
+  }
+
+  bool isFileClosed(TourFileModel file) {
+    final status = file.status.toLowerCase();
+    return status.contains("closed") || status.contains("completed");
   }
 
   @override

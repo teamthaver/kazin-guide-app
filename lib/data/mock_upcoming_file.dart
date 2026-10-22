@@ -7,7 +7,7 @@ final mockUpcomingTourFile = TourFileModel(
   groupType: "Family Vacation",
   leadName: "Mr. Rajesh Sharma",
   leadContact: "+91 9876543210",
-  
+
   status: "upcoming",
   enquiryId: 41200,
   enquiryNo: "FGE12900",
@@ -74,10 +74,13 @@ final mockUpcomingTourFile = TourFileModel(
       contactNumber: "+995 555 12 34 56",
       address: "14 Shota Rustaveli Ave, Tbilisi",
       mapUrl: "https://maps.google.com",
+      openingTime: "12:00",
+      closingTime: "23:30",
+      date: "2026-11-17T00:00:00.000Z",
     ),
   ],
   itinerary: [
-     ItineraryStepModel(
+    ItineraryStepModel(
       id: 5001,
       date: "2026-11-15T00:00:00.000Z",
       time: "11:30",

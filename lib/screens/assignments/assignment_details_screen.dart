@@ -26,110 +26,172 @@ class AssignmentDetailsScreen extends StatelessWidget {
         : Get.put(AssignmentsController());
 
     final Map<String, dynamic>? args = Get.arguments as Map<String, dynamic>?;
-    final TourFileModel? file = tourFile ?? args?["tourFile"];
     final bool showAssignmentActions =
         isNewAssignment || (args?["isNewAssignment"] == true);
 
-    if (file == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Tour Dossier")),
-        body: const Center(child: Text("No dossier available")),
-      );
-    }
-
-    final bool isClosed = file.status.toLowerCase().contains("closed");
-    final groupedItinerary = controller.groupByDate(file.itinerary);
-    final sortedDates = groupedItinerary.keys.toList()..sort();
-
-    return Scaffold(
-      backgroundColor: KazinColors.scaffoldBg,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Get.back(),
-        ),
-        title: Text(
-          "File #${file.enquiryNo}",
-          style: const TextStyle(
-            color: KazinColors.primaryNavy,
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
-        ),
-        actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            margin: const EdgeInsets.only(right: 14),
-            decoration: BoxDecoration(
-              color: showAssignmentActions
-                  ? KazinColors.blueInfoBg
-                  : (isClosed
-                        ? KazinColors.borderSubtle
-                        : KazinColors.greenAcceptedBg),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              showAssignmentActions
-                  ? "NEW ASSIGNMENT"
-                  : file.status.toUpperCase(),
+    return Obx(() {
+      // 1. Loading State Check
+      if (controller.isLoading.value) {
+        return Scaffold(
+          backgroundColor: KazinColors.scaffoldBg,
+          appBar: AppBar(
+            title: const Text(
+              "Tour Dossier",
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: showAssignmentActions
-                    ? KazinColors.primaryBlue
-                    : (isClosed
-                          ? KazinColors.textSecondary
-                          : KazinColors.greenAcceptedText),
+                color: KazinColors.primaryNavy,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Get.back(),
+            ),
+          ),
+          body: const Center(
+            child: CircularProgressIndicator(color: KazinColors.primaryNavy),
+          ),
+        );
+      }
+
+      // 2. Resolve File Data (Direct Argument ya Controller Rxn se)
+      final TourFileModel? file =
+          tourFile ?? args?["tourFile"] ?? controller.tourFile.value;
+
+      if (file == null) {
+        return Scaffold(
+          backgroundColor: KazinColors.scaffoldBg,
+          appBar: AppBar(
+            title: const Text(
+              "Tour Dossier",
+              style: TextStyle(
+                color: KazinColors.primaryNavy,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Get.back(),
+            ),
+          ),
+          body: const Center(
+            child: Text(
+              "No dossier details available.",
+              style: TextStyle(
+                color: KazinColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: showAssignmentActions
-          ? _buildAssignmentActionsBar(assignmentsCtrl, file)
-          : null,
-      body: ListView(
-        padding: const EdgeInsets.all(14),
-        children: [
-          _buildLeadHeader(controller, file, sortedDates),
-          const SizedBox(height: 14),
-          if (file.persons.isNotEmpty) ...[
-            _buildGuestsSection(file.persons),
-            const SizedBox(height: 14),
-          ],
-          if (file.flights.isNotEmpty) ...[
-            _buildFlightsSection(controller, file.flights),
-            const SizedBox(height: 14),
-          ],
-          if (file.driver != null || file.transport != null) ...[
-            _buildCompleteTransportSection(
-              controller,
-              file.driver,
-              file.transport,
+        );
+      }
+
+      final bool isClosed = file.status.toLowerCase().contains("closed");
+      final groupedItinerary = controller.groupByDate(file.itinerary);
+      final sortedDates = groupedItinerary.keys.toList()..sort();
+
+      return Scaffold(
+        backgroundColor: KazinColors.scaffoldBg,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Get.back(),
+          ),
+          title: Text(
+            "File #${file.enquiryNo}",
+            style: const TextStyle(
+              color: KazinColors.primaryNavy,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
             ),
-            const SizedBox(height: 14),
+          ),
+          actions: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: showAssignmentActions
+                    ? KazinColors.blueInfoBg
+                    : (isClosed
+                          ? KazinColors.borderSubtle
+                          : KazinColors.greenAcceptedBg),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                showAssignmentActions
+                    ? "NEW ASSIGNMENT"
+                    : file.status.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: showAssignmentActions
+                      ? KazinColors.primaryBlue
+                      : (isClosed
+                            ? KazinColors.textSecondary
+                            : KazinColors.greenAcceptedText),
+                ),
+              ),
+            ),
           ],
-          if (file.hotel != null) ...[
-            _buildHotelSection(file.hotel!),
-            const SizedBox(height: 14),
-          ],
-          if (sortedDates.isNotEmpty) ...[
-            _buildDayWiseSection(controller, sortedDates, groupedItinerary),
-            const SizedBox(height: 14),
-          ],
-          if (file.restaurants.isNotEmpty) ...[
-            _buildRestaurantsSection(controller, file.restaurants),
-            const SizedBox(height: 20),
-          ],
-        ],
-      ),
-    );
+        ),
+        bottomNavigationBar: showAssignmentActions
+            ? _buildAssignmentActionsBar(context, assignmentsCtrl, file)
+            : null,
+        body: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.all(14),
+            children: [
+              _buildLeadHeader(controller, file, sortedDates),
+              const SizedBox(height: 14),
+              if (file.persons.isNotEmpty) ...[
+                _buildGuestsSection(file.persons),
+                const SizedBox(height: 14),
+              ],
+              if (file.flights.isNotEmpty) ...[
+                _buildFlightsSection(controller, file.flights),
+                const SizedBox(height: 14),
+              ],
+              if (file.driver != null || file.transport != null) ...[
+                _buildCompleteTransportSection(
+                  controller,
+                  file.driver,
+                  file.transport,
+                ),
+                const SizedBox(height: 14),
+              ],
+              if (file.hotel != null) ...[
+                _buildHotelSection(file.hotel!),
+                const SizedBox(height: 14),
+              ],
+              if (sortedDates.isNotEmpty) ...[
+                _buildDayWiseSection(controller, sortedDates, groupedItinerary),
+                const SizedBox(height: 14),
+              ],
+              if (file.restaurants.isNotEmpty) ...[
+                _buildRestaurantsSection(controller, file.restaurants),
+                const SizedBox(height: 20),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
   }
 
+  // --- Actions Bottom Bar ---
+  // --- Actions Bottom Bar ---
   Widget _buildAssignmentActionsBar(
+    BuildContext context,
     AssignmentsController assignmentsCtrl,
     TourFileModel file,
   ) {
@@ -144,13 +206,15 @@ class AssignmentDetailsScreen extends StatelessWidget {
           () => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Accept Assignment Action (Full Width Primary)
+              // 1. Accept Assignment Action
+              // 1. Accept Assignment Action
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: KazinColors.greenAcceptedText,
                     minimumSize: const Size.fromHeight(50),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -158,14 +222,10 @@ class AssignmentDetailsScreen extends StatelessWidget {
                   onPressed: assignmentsCtrl.isActionLoading.value
                       ? null
                       : () async {
-                          // 1. Call Accept API and check success result
                           final bool isSuccess = await assignmentsCtrl
                               .acceptTourFile(file);
 
-                          // 2. Sirf tabhi upcoming me add karo aur screen close karo jab API success de
                           if (isSuccess) {
-                            assignmentsCtrl.addUpcomingAssignment(file);
-
                             if (Get.isRegistered<NotificationsController>()) {
                               Get.find<NotificationsController>()
                                   .removeAssignmentNotification();
@@ -178,7 +238,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
                                   false;
                             }
 
-                            Get.back();
+                            Navigator.of(context).pop();
                           }
                         },
                   child: assignmentsCtrl.isActionLoading.value
@@ -195,13 +255,14 @@ class AssignmentDetailsScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                 ),
               ),
               const SizedBox(height: 10),
 
-              // 2. Decline Assignment Action (Full Width Outline -> Navigate to Decline Screen)
+              // 2. Decline Assignment Action
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -343,7 +404,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Guest List ---
+  // --- Passenger Information ---
   Widget _buildGuestsSection(List<PersonModel> persons) {
     return Card(
       elevation: 0.5,
@@ -649,13 +710,16 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Hotel Section ---
+  // --- Hotel Section (Emphasised Accommodation & Room Details) ---
   Widget _buildHotelSection(HotelBundleModel hotel) {
     return Card(
       elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: KazinColors.borderSubtle),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -666,14 +730,14 @@ class AssignmentDetailsScreen extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.hotel_rounded,
-                      size: 18,
+                      size: 20,
                       color: KazinColors.primaryBlue,
                     ),
                     SizedBox(width: 8),
                     Text(
                       "Hotel Accommodation",
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: KazinColors.primaryNavy,
                       ),
@@ -682,64 +746,199 @@ class AssignmentDetailsScreen extends StatelessWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                    horizontal: 10,
+                    vertical: 3.5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.amber.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade300),
                   ),
-                  child: Text(
-                    hotel.category,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.amber.shade900,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 13,
+                        color: Colors.amber,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        hotel.category.isNotEmpty ? hotel.category : "5 Star",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const Divider(height: 18),
+            const Divider(height: 20),
             Text(
               hotel.hotelName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: KazinColors.primaryNavy,
+              ),
             ),
-            if (hotel.address.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                "${hotel.address}, ${hotel.city}",
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: KazinColors.textSecondary,
-                ),
+            if (hotel.address.isNotEmpty || hotel.city.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 15,
+                    color: KazinColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      "${hotel.address}${hotel.address.isNotEmpty && hotel.city.isNotEmpty ? ', ' : ''}${hotel.city}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: KazinColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Room: ${hotel.roomCategory}",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: KazinColors.scaffoldBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: KazinColors.borderSubtle),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long_rounded,
+                            size: 16,
+                            color: KazinColors.secondaryTeal,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Voucher: #${hotel.confirmationNum}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: KazinColors.secondaryTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: KazinColors.greenAcceptedBg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: KazinColors.greenAcceptedText.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.free_breakfast_rounded,
+                              size: 12,
+                              color: KazinColors.greenAcceptedText,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              "Breakfast Included",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: KazinColors.greenAcceptedText,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  "Voucher #: ${hotel.confirmationNum}",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: KazinColors.secondaryTeal,
+                  const Divider(height: 16, color: KazinColors.borderSubtle),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Allocated Room Category",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: KazinColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              hotel.roomCategory.isNotEmpty
+                                  ? hotel.roomCategory
+                                  : "Standard Room",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: KazinColors.primaryNavy,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: KazinColors.borderSubtle),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.meeting_room_outlined,
+                              size: 15,
+                              color: KazinColors.primaryBlue,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              "1 Room (Triple)",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: KazinColors.primaryNavy,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -747,7 +946,7 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Day Wise Section with Obx ---
+  // --- Day Wise Section ---
   Widget _buildDayWiseSection(
     AssignmentDetailsController controller,
     List<String> sortedDates,
@@ -993,85 +1192,240 @@ class AssignmentDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Restaurants Section ---
+  // --- Restaurants Section (Compact List Tile with Circular Quick Actions) ---
   Widget _buildRestaurantsSection(
     AssignmentDetailsController controller,
     List<RestaurantDetailModel> restaurants,
   ) {
-    return Card(
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(
-                  Icons.restaurant_rounded,
-                  size: 18,
-                  color: KazinColors.primaryBlue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                Icons.restaurant_rounded,
+                size: 18,
+                color: KazinColors.primaryBlue,
+              ),
+              SizedBox(width: 8),
+              Text(
+                "Confirmed Dining Reservations",
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: KazinColors.primaryNavy,
                 ),
-                SizedBox(width: 8),
-                Text(
-                  "Confirmed Meals & Locations",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: KazinColors.primaryNavy,
-                  ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...restaurants.map((r) {
+          final String formattedMealDate = r.date.isNotEmpty
+              ? controller.formatShortDate(r.date)
+              : "";
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: KazinColors.borderSubtle),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            const Divider(height: 18),
-            ...restaurants.map(
-              (r) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            r.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: KazinColors.primaryNavy,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              r.buffetType.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                          Text(
-                            "${r.cuisine.toUpperCase()} • ${r.buffetType} • ${r.address}",
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: KazinColors.textSecondary,
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: KazinColors.secondaryTeal.withValues(
+                                alpha: 0.12,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              r.cuisine.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: KazinColors.secondaryTeal,
+                              ),
                             ),
                           ),
+                          if (formattedMealDate.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              "• $formattedMealDate",
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: KazinColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                    ),
-                    if (r.mapUrl.isNotEmpty)
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(
-                          Icons.map_outlined,
-                          size: 18,
-                          color: KazinColors.primaryBlue,
+                      const SizedBox(height: 6),
+                      Text(
+                        r.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: KazinColors.primaryNavy,
                         ),
-                        onPressed: () => controller.safeLaunch(r.mapUrl),
+                      ),
+                      const SizedBox(height: 4),
+                      if (r.openingTime.isNotEmpty && r.closingTime.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: KazinColors.scaffoldBg,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 12,
+                                color: KazinColors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Open: ${r.openingTime}  –  Close: ${r.closingTime}",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: KazinColors.primaryNavy,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (r.address.isNotEmpty)
+                        Text(
+                          r.address,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: KazinColors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (r.contactNumber.isNotEmpty)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => controller.safeLaunch(
+                            'tel:${r.contactNumber.replaceAll(RegExp(r'[^0-9+]'), '')}',
+                          ),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: KazinColors.greenAcceptedBg,
+                              border: Border.all(
+                                color: KazinColors.greenAcceptedText.withValues(
+                                  alpha: 0.2,
+                                ),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.phone_outlined,
+                              size: 18,
+                              color: KazinColors.greenAcceptedText,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (r.contactNumber.isNotEmpty && r.mapUrl.isNotEmpty)
+                      const SizedBox(width: 8),
+                    if (r.mapUrl.isNotEmpty)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => controller.safeLaunch(r.mapUrl),
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: KazinColors.blueInfoBg,
+                              border: Border.all(
+                                color: KazinColors.primaryBlue.withValues(
+                                  alpha: 0.2,
+                                ),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.navigation_outlined,
+                              size: 18,
+                              color: KazinColors.primaryBlue,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          );
+        }),
+      ],
     );
   }
 }
