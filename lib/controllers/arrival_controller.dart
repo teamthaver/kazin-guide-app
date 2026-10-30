@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
 import 'package:kazin_guide_app/core/services/auth_service.dart';
 import 'package:kazin_guide_app/core/services/db_service.dart';
@@ -34,29 +35,52 @@ class ArrivalController extends GetxController {
   Future<void> loadArrivalData() async {
     isLoading.value = true;
     try {
+      // 1. Offline Fallback: Pehle local cached data load karein
       final localData = await _dbService.getActiveTourFile();
       if (localData != null) {
         activeTourFile.value = localData;
         _autoSelectTodayIndex(localData);
+
+        // Cached file ki checklist load karein agar controller registered ho
+        if (Get.isRegistered<KazinController>()) {
+          Get.find<KazinController>().fetchChecklist(localData.arrivalId);
+        }
       }
 
+      // 2. Server se live arrival check karein
       final response = await _apiService.loadArrivalData(
         guideId: _authService.guideId,
       );
 
+      // Agar server reachable hai aur valid success response mila hai
       if (response.isOk &&
           response.body != null &&
           response.body['success'] == true) {
         final List dataList = response.body['data'] ?? [];
-        if (dataList.isNotEmpty) {
-          final freshTour = TourFileModel.fromJson(dataList.first);
 
+        if (dataList.isNotEmpty) {
+          // Case A: Nayi active tour file mili -> Local DB update karein aur state refresh karein
+          final freshTour = TourFileModel.fromJson(dataList.first);
           await _dbService.saveTourFile(freshTour);
           activeTourFile.value = freshTour;
           _autoSelectTodayIndex(freshTour);
+
+          // Server checklist fetch trigger karein
+          if (Get.isRegistered<KazinController>()) {
+            Get.find<KazinController>().fetchChecklist(freshTour.arrivalId);
+          }
+        } else {
+          // Case B: Server par koi active file nahi hai (dataList empty)
+          await _dbService.clearActiveTourFile();
+          activeTourFile.value = null;
+
+          if (Get.isRegistered<KazinController>()) {
+            Get.find<KazinController>().clearChecklist();
+          }
         }
       }
     } catch (_) {
+      // Offline mode me local cached data barkarar rahega
     } finally {
       isLoading.value = false;
     }
@@ -148,7 +172,7 @@ class ArrivalController extends GetxController {
     });
   }
 
-  void _updateInMemoryStepStatus(int stepId, bool status) {
+  void _updateInMemoryStepStatus(int stepId, int status) {
     final current = activeTourFile.value;
     if (current == null) return;
 
@@ -162,6 +186,9 @@ class ArrivalController extends GetxController {
           content: s.content,
           remarks: s.remarks,
           isCompleted: status,
+          completedAt: s.completedAt,
+          delayReason: s.delayReason,
+          image: s.image,
         );
       }
       return s;
@@ -170,17 +197,32 @@ class ArrivalController extends GetxController {
     activeTourFile.value = TourFileModel(
       arrivalId: current.arrivalId,
       arrivalDate: current.arrivalDate,
-      guideId: current.guideId,
       groupType: current.groupType,
       leadName: current.leadName,
+      leadIsdCode: current.leadIsdCode,
       leadContact: current.leadContact,
+      leadPhoto: current.leadPhoto,
+      hotelId: current.hotelId,
+      numberRooms: current.numberRooms,
+      numAdults: current.numAdults,
+      numChild: current.numChild,
+      childAges: current.childAges,
+      driverId: current.driverId,
       status: current.status,
+      remarks: current.remarks,
       enquiryId: current.enquiryId,
       enquiryNo: current.enquiryNo,
+      enquiryAbbr: current.enquiryAbbr,
+      enquirySequence: current.enquirySequence,
+      mode: current.mode,
       numberPersons: current.numberPersons,
       checkInDate: current.checkInDate,
       checkOutDate: current.checkOutDate,
       numberOfNights: current.numberOfNights,
+      enquiryFor: current.enquiryFor,
+      enquiryType: current.enquiryType,
+      enquiryRemarks: current.enquiryRemarks,
+      guideId: current.guideId,
       itinerary: updatedSteps,
       flights: current.flights,
       hotel: current.hotel,
@@ -191,10 +233,8 @@ class ArrivalController extends GetxController {
     );
   }
 
-  // Helper: Scheduled time aur current time ka difference (minutes me)
   int _calculateDelayInMinutes(String stepDate, String stepTime) {
     try {
-      // stepDate formats: "2026-10-14" ya "2026-10-14T00:00:00"
       final dateOnly = stepDate.split('T')[0];
       final timeParts = stepTime.trim().split(':');
       final hour = int.parse(timeParts[0]);
@@ -226,16 +266,13 @@ class ArrivalController extends GetxController {
     final currentTime =
         "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
-    // Step dhundein taaki schedule date/time verify kiya ja sake
     final current = activeTourFile.value;
     final step = current?.itinerary.firstWhereOrNull(
       (s) => s.id == itineraryId,
     );
 
-    // 1. Client-Side Check: Agar delay reason abhi tak nahi diya aur activity >15 min late hai
     if ((delayReason == null || delayReason.trim().isEmpty) && step != null) {
       final delayMins = _calculateDelayInMinutes(step.date, step.time);
-      // Agar backend rule 15 minutes ka hai aur guide late hai:
       if (delayMins > 15) {
         _promptDelayReason(
           itineraryId: itineraryId,
@@ -243,13 +280,12 @@ class ArrivalController extends GetxController {
           imageFile: imageFile,
           delayedMinutes: delayMins.toString(),
         );
-        return; // Dialog submit hone ke baad dobara call hoga reason ke saath
+        return;
       }
     }
 
-    // 2. Step ko SQLite aur screen par complete mark karein
     await _dbService.updateStepStatus(itineraryId, true);
-    _updateInMemoryStepStatus(itineraryId, true);
+    _updateInMemoryStepStatus(itineraryId, 1);
 
     isLoading.value = true;
     try {
@@ -271,7 +307,6 @@ class ArrivalController extends GetxController {
         );
       } else if (response.statusCode == 400 &&
           response.body?['message'] == "Provide delay reason.") {
-        // Agar server online time par extra delay pakadta hai
         final delayedMinutes =
             response.body?['delayed_by_minutes']?.toString() ?? "";
         _promptDelayReason(
@@ -281,7 +316,6 @@ class ArrivalController extends GetxController {
           delayedMinutes: delayedMinutes,
         );
       } else {
-        // Server unavailable -> Save to queue with reason
         await _queueForSync(
           itineraryId,
           arrivalId,
@@ -291,7 +325,6 @@ class ArrivalController extends GetxController {
         );
       }
     } catch (_) {
-      // Network Exception (Offline) -> Save to SQLite Queue with reason
       await _queueForSync(
         itineraryId,
         arrivalId,
@@ -332,7 +365,6 @@ class ArrivalController extends GetxController {
     );
   }
 
-  // Helper to format minutes into human readable hours & minutes
   String _formatDelayDuration(String delayedMinutes) {
     final totalMins = int.tryParse(delayedMinutes) ?? 0;
     if (totalMins <= 0) return "";
@@ -370,7 +402,6 @@ class ArrivalController extends GetxController {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with Warning Icon & Title
               Row(
                 children: [
                   Container(
@@ -388,7 +419,7 @@ class ArrivalController extends GetxController {
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
-                      "Delay ",
+                      "Delay Notice",
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -400,8 +431,6 @@ class ArrivalController extends GetxController {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Time badge container with Hours & Minutes
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -438,7 +467,6 @@ class ArrivalController extends GetxController {
                 ),
               ),
               const SizedBox(height: 16),
-
               const Text(
                 "Reason for Delay Log *",
                 style: TextStyle(
@@ -448,8 +476,6 @@ class ArrivalController extends GetxController {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Modern Text Field
               TextField(
                 controller: reasonCtrl,
                 maxLines: 3,
@@ -485,8 +511,6 @@ class ArrivalController extends GetxController {
                 ),
               ),
               const SizedBox(height: 22),
-
-              // Action Buttons Row
               Row(
                 children: [
                   Expanded(
@@ -563,8 +587,9 @@ class ArrivalController extends GetxController {
     );
   }
 
-  Future<void> toggleStepCompletion(int stepId, bool currentStatus) async {
-    await _dbService.updateStepStatus(stepId, !currentStatus);
-    _updateInMemoryStepStatus(stepId, !currentStatus);
+  Future<void> toggleStepCompletion(int stepId, int currentStatus) async {
+    final nextStatus = currentStatus == 1 ? 0 : 1;
+    await _dbService.updateStepStatus(stepId, nextStatus == 1);
+    _updateInMemoryStepStatus(stepId, nextStatus);
   }
 }

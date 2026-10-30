@@ -20,7 +20,7 @@ class ServiceClosureScreen extends StatelessWidget {
           onPressed: () => Get.back(),
         ),
         title: const Text(
-          "File #KZ10231",
+          "KZ10231",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
       ),

@@ -16,7 +16,6 @@ import '../../screens/assignments/assignments_list_screen.dart';
 import '../../screens/assignments/assignment_details_screen.dart';
 import '../../screens/assignments/decline_assignment_screen.dart';
 import '../../screens/assignments/itinerary_change_screen.dart';
-import '../../screens/execution/readiness_checklist_screen.dart';
 import '../../screens/execution/service_execution_screen.dart';
 import '../../screens/execution/airport_workflow_screen.dart';
 import '../../screens/execution/map_navigation_screen.dart';
@@ -100,11 +99,11 @@ class AppPages {
       page: () => const ItineraryChangeScreen(),
       transition: Transition.rightToLeft,
     ),
-    GetPage(
-      name: _Paths.READINESS_CHECKLIST,
-      page: () => const ReadinessChecklistScreen(),
-      transition: Transition.rightToLeft,
-    ),
+    // GetPage(
+    //   name: _Paths.READINESS_CHECKLIST,
+    //   page: () => const ReadinessChecklistScreen(),
+    //   transition: Transition.rightToLeft,
+    // ),
     GetPage(
       name: _Paths.SERVICE_EXECUTION,
       page: () => const ServiceExecutionScreen(),

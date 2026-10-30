@@ -24,8 +24,8 @@ class ApiService extends GetConnect {
       if (Get.isRegistered<AuthService>()) {
         final auth = Get.find<AuthService>();
         if (auth.guideId > 0 && auth.sessionToken.isNotEmpty) {
-          request.headers['x-guide-id'] = '4';
-          // request.headers['x-guide-id'] = auth.guideId.toString();
+          // request.headers['x-guide-id'] = '4';
+          request.headers['x-guide-id'] = auth.guideId.toString();
           request.headers['x-session-token'] = auth.sessionToken;
           final deviceId = await DeviceService.getOrCreateDeviceId();
           request.headers['x-device-string'] = deviceId;
@@ -232,6 +232,27 @@ class ApiService extends GetConnect {
     };
     log('📤 [AUTH LOGOUT PAYLOAD]: $payload');
     return post('/api/auth/logout', payload);
+  }
+
+  Future<Response> loadChecklist({required int arrivalId}) {
+    final payload = {"arrival_id": arrivalId};
+    return post('/api/action/checklist', payload);
+  }
+
+  Future<Response> markChecklistItem({
+    required int checklistId,
+    bool checked = true,
+  }) {
+    final payload = {"checklist_id": checklistId, "checked": checked};
+    return post('/api/action/checklist/mark', payload);
+  }
+
+  Future<Response> loadAlertData({required int guideId}) {
+    return post("/api/guide/alert", {"guide_id": guideId});
+  }
+
+  Future<Response> loadUpcomingDetails({required int arrivalId}) {
+    return post("/api/guide/upcoming-details", {"arrival_id": arrivalId});
   }
 
   Future<Response> loadArrivalData({required int guideId}) {

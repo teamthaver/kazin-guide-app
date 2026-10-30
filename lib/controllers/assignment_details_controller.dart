@@ -34,6 +34,47 @@ class AssignmentDetailsController extends GetxController {
     }
   }
 
+  Future<void> openWhatsApp({
+    required String phone,
+    String isdCode = '',
+  }) async {
+    // Sabhi non-digit characters (+, -, space wagaira) remove karein
+    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    String cleanIsd = isdCode.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (cleanPhone.isEmpty) return;
+
+    // Agar ISD code alag se diya hai aur phone me pehle se shamil nahi hai
+    String fullNumber = cleanPhone;
+    if (cleanIsd.isNotEmpty && !cleanPhone.startsWith(cleanIsd)) {
+      fullNumber = '$cleanIsd$cleanPhone';
+    }
+
+    // 1. WhatsApp Native Scheme (Sabse fast app open karta hai)
+    final Uri whatsappNativeUri = Uri.parse(
+      "whatsapp://send?phone=$fullNumber",
+    );
+    // 2. Web fallback link
+    final Uri whatsappWebUri = Uri.parse("https://wa.me/$fullNumber");
+
+    try {
+      if (await canLaunchUrl(whatsappNativeUri)) {
+        await launchUrl(
+          whatsappNativeUri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        await launchUrl(whatsappWebUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      // Fallback: Agar WhatsApp install na ho to direct phone dialer open ho jaye
+      final Uri telUri = Uri.parse("tel:$fullNumber");
+      if (await canLaunchUrl(telUri)) {
+        await launchUrl(telUri);
+      }
+    }
+  }
+
   Future<void> fetchTourDossier(int arrivalId) async {
     isLoading.value = true;
     try {
@@ -101,7 +142,7 @@ class AssignmentDetailsController extends GetxController {
         "Nov",
         "Dec",
       ];
-      return "${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}";
+      return "${dt.day.toString().padLeft(2, '0')}-${months[dt.month - 1]}-${dt.year}";
     } catch (_) {
       return isoDate;
     }

@@ -18,8 +18,7 @@ class AuthService extends GetxService {
   static const String _guideDataKey = 'guide_data';
 
   // Base URL for uploads/profile assets
-  static const String assetBaseUrl =
-      "https://kazincrmnew.thavertech.com/assets/guide/";
+  static const String assetBaseUrl = "https://crm.kazindmc.com/assets/guide/";
 
   Future<AuthService> init() async {
     _box = GetStorage();

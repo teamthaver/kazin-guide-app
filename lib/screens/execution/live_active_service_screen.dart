@@ -29,7 +29,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
         "Nov",
         "Dec",
       ];
-      return "${dt.day.toString().padLeft(2, '0')} ${months[dt.month - 1]}";
+      return "${dt.day.toString().padLeft(2, '0')}-${months[dt.month - 1]}-${dt.year}";
     } catch (_) {
       return isoDate;
     }
@@ -109,6 +109,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
             );
           }
 
+          final int totalDays = sortedDates.length;
           final int currentIndex =
               (arrivalCtrl.activeDayIndex.value < sortedDates.length)
               ? arrivalCtrl.activeDayIndex.value
@@ -126,15 +127,24 @@ class LiveActiveServiceScreen extends StatelessWidget {
               grouped[selectedDate] ?? [];
           final bool isLastDay = currentIndex == sortedDates.length - 1;
 
-          final String currentDayTitle = currentTasks.isNotEmpty
-              ? currentTasks.first.title
-              : "Tour Operations";
           final String vehicleDisplayName =
               file.transport?.vehicleName ?? "Sedan";
 
           final int completedCount = currentTasks
-              .where((s) => s.isCompleted)
+              .where((s) => s.isCompleted == 1 ? true : false)
               .length;
+
+          // Adults & Children calculation (NO PAX)
+          final int adults = file.numAdults > 0
+              ? file.numAdults
+              : file.numberPersons;
+          final int children = file.numChild;
+          final String guestDetails = children > 0
+              ? "$adults Adults, $children Child"
+              : "$adults Adults";
+          final String groupType = file.groupType.isNotEmpty
+              ? file.groupType
+              : "Standard";
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -169,49 +179,77 @@ class LiveActiveServiceScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "FILE #${file.enquiryNo}",
+                              file.enquiryNo.isNotEmpty
+                                  ? file.enquiryNo
+                                  : "${file.arrivalId}",
                               style: const TextStyle(
                                 color: Colors.white70,
-                                fontSize: 15,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.8,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: KazinColors.secondaryTeal.withValues(
-                                  alpha: 0.25,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: KazinColors.secondaryTeal,
-                                ),
-                              ),
-                              child: Text(
-                                "DAY ${currentIndex + 1}",
-                                style: const TextStyle(
-                                  color: Colors.tealAccent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                            // Container(
+                            //   padding: const EdgeInsets.symmetric(
+                            //     horizontal: 10,
+                            //     vertical: 4,
+                            //   ),
+                            //   decoration: BoxDecoration(
+                            //     color: KazinColors.secondaryTeal.withValues(
+                            //       alpha: 0.25,
+                            //     ),
+                            //     borderRadius: BorderRadius.circular(12),
+                            //     border: Border.all(
+                            //       color: KazinColors.secondaryTeal,
+                            //     ),
+                            //   ),
+                            //   child: Text(
+                            //     "DAY ${currentIndex + 1} OF $totalDays",
+                            //     style: const TextStyle(
+                            //       color: Colors.tealAccent,
+                            //       fontSize: 11,
+                            //       fontWeight: FontWeight.bold,
+                            //     ),
+                            //   ),
+                            // ),
                           ],
                         ),
                         const SizedBox(height: 12),
+
+                        // Lead Guest Name
                         Text(
-                          "${file.leadName} (${file.numberPersons} PAX)",
+                          file.leadName.isNotEmpty
+                              ? file.leadName
+                              : "Group Tour",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Divider(color: Colors.white24, height: 24),
+                        const SizedBox(height: 4),
+
+                        // Guest details: Adults, Child & Group Type under Lead Name (NO PAX)
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.groups_outlined,
+                              size: 15,
+                              color: Colors.tealAccent,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "$guestDetails • $groupType",
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const Divider(color: Colors.white24, height: 22),
                         Row(
                           children: [
                             Expanded(
@@ -261,9 +299,9 @@ class LiveActiveServiceScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // Auto-scrolling Horizontal Day Pills
+                // Auto-scrolling Horizontal Day Pills: Day X of Y (Top) & Date (Bottom)
                 SizedBox(
-                  height: 44,
+                  height: 56,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: sortedDates.length,
@@ -272,6 +310,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
                       final isSel = currentIndex == index;
                       return _DayPillItem(
                         index: index,
+                        totalDays: totalDays,
                         isSelected: isSel,
                         dateText: _formatDayPill(sortedDates[index]),
                         onTap: () {
@@ -394,7 +433,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Day ${currentIndex + 1} Itinerary",
+                          "Day ${currentIndex + 1} of $totalDays Itinerary",
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 17,
@@ -447,7 +486,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
                 // Interactive Modern Tasks Cards
                 ...List.generate(currentTasks.length, (idx) {
                   final step = currentTasks[idx];
-                  final bool isDone = step.isCompleted;
+                  final bool isDone = step.isCompleted == 1 ? true : false;
                   final bool hasVoucher =
                       step.remarks.toLowerCase().contains("included") ||
                       step.remarks.toLowerCase().contains("ticket") ||
@@ -483,7 +522,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                       child: IntrinsicHeight(
                         child: Row(
                           children: [
-                            // Left Colored Indicator Strip
                             Container(
                               width: 4.5,
                               color: isDone
@@ -498,7 +536,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Top Row: Time, Tag & Action/Status
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -551,10 +588,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
                                               ),
                                           ],
                                         ),
-
-                                        // Status Handling
                                         if (isDone)
-                                          // Completed Badge
                                           Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 10,
@@ -589,7 +623,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                                             ),
                                           )
                                         else if (!isSelectedDayToday)
-                                          // Next/Future Days: Mark option NOT available
                                           Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 9,
@@ -631,7 +664,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                                             ),
                                           )
                                         else
-                                          // Current Day Only: Modern Interactive 'Mark Done' Button
                                           Material(
                                             color: Colors.transparent,
                                             child: InkWell(
@@ -694,8 +726,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                                       ],
                                     ),
                                     const SizedBox(height: 10),
-
-                                    // Title (Clean Typography)
                                     Text(
                                       step.title,
                                       maxLines: 2,
@@ -861,7 +891,7 @@ class LiveActiveServiceScreen extends StatelessWidget {
     );
   }
 
-  // Modern BottomSheet for Checkpoint Completion (Remarks + Picture)
+  // Modern BottomSheet for Checkpoint Completion
   static void _showMarkCompletedSheet(
     BuildContext context,
     ArrivalController arrivalCtrl,
@@ -916,8 +946,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-
-                // Photo Attachment Box
                 const Text(
                   "Proof / Activity Photo (Optional)",
                   style: TextStyle(
@@ -1022,8 +1050,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                   );
                 }),
                 const SizedBox(height: 16),
-
-                // Operational Remarks
                 const Text(
                   "Execution Remarks (Optional)",
                   style: TextStyle(
@@ -1048,8 +1074,6 @@ class LiveActiveServiceScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Confirmation Action
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: KazinColors.secondaryTeal,
@@ -1129,12 +1153,14 @@ class LiveActiveServiceScreen extends StatelessWidget {
 
 class _DayPillItem extends StatelessWidget {
   final int index;
+  final int totalDays;
   final bool isSelected;
   final String dateText;
   final VoidCallback onTap;
 
   const _DayPillItem({
     required this.index,
+    required this.totalDays,
     required this.isSelected,
     required this.dateText,
     required this.onTap,
@@ -1159,25 +1185,52 @@ class _DayPillItem extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        width: 104,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? KazinColors.primaryNavy : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? KazinColors.primaryNavy
                 : KazinColors.borderSubtle,
+            width: isSelected ? 1.4 : 1.0,
           ),
-        ),
-        child: Center(
-          child: Text(
-            "Day ${index + 1} ($dateText)",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.white : KazinColors.textPrimary,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? KazinColors.primaryNavy.withValues(alpha: 0.18)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Top: Day X of Y
+            Text(
+              "Day ${index + 1} of $totalDays",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? Colors.white : KazinColors.primaryNavy,
+              ),
+            ),
+            const SizedBox(height: 2),
+            // Bottom: Date
+            Text(
+              dateText,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: isSelected
+                    ? Colors.tealAccent
+                    : KazinColors.textSecondary,
+              ),
+            ),
+          ],
         ),
       ),
     );

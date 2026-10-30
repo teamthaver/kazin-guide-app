@@ -89,24 +89,25 @@ class AuthController extends GetxController {
             otpFocusNodes[0].requestFocus();
           }
         });
-      } else {
-        String errorMessage =
-            "Server error (${response.statusCode}). Please try again later.";
+      } 
+      // else {
+      //   String errorMessage =
+      //       "Server error (${response.statusCode}). Please try again later.";
 
-        // Safe check: Body Map hai ya nahi
-        if (response.body is Map && response.body['message'] != null) {
-          errorMessage = response.body['message'].toString();
-        } else if (response.statusCode == 502 || response.statusCode == 503) {
-          errorMessage =
-              "Server is currently unavailable (502 Bad Gateway). Please contact support.";
-        }
+      //   // Safe check: Body Map hai ya nahi
+      //   if (response.body is Map && response.body['message'] != null) {
+      //     errorMessage = response.body['message'].toString();
+      //   } else if (response.statusCode == 502 || response.statusCode == 503) {
+      //     errorMessage =
+      //         "Server is currently unavailable (502 Bad Gateway). Please contact support.";
+      //   }
 
-        Get.snackbar(
-          "Login Failed",
-          errorMessage,
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
+      //   Get.snackbar(
+      //     "Login Failed",
+      //     errorMessage,
+      //     snackPosition: SnackPosition.BOTTOM,
+      //   );
+      // }
     } catch (e, stackTrace) {
       log('🔥 Error in submitLogin: $e', stackTrace: stackTrace);
       Get.snackbar(

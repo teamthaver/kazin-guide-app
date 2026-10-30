@@ -1,4 +1,4 @@
- import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:kazin_guide_app/controllers/arrival_controller.dart';
 import 'package:kazin_guide_app/controllers/app_controller.dart';
 import 'package:kazin_guide_app/controllers/profile_controller.dart';

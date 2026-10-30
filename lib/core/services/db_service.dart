@@ -101,6 +101,11 @@ class DbService {
     });
   }
 
+  Future<void> clearActiveTourFile() async {
+    final db = await database;
+    await db.delete('tour_files'); // aapke table ka jo bhi exact name ho
+  }
+
   Future<List<Map<String, dynamic>>> getPendingSyncActions() async {
     final db = await database;
     return await db.query('sync_queue', orderBy: 'id ASC');
@@ -152,7 +157,8 @@ class DbService {
           'title': step.title,
           'content': step.content,
           'remarks': step.remarks,
-          'is_completed': step.isCompleted ? 1 : 0,
+          // Int direct store hota hai SQLite me
+          'is_completed': step.isCompleted,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });

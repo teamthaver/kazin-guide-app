@@ -45,7 +45,7 @@ class WelcomePlacardScreen extends StatelessWidget {
                     final String groupCategory =
                         file?.groupType.toUpperCase() ?? "GROUP";
                     final String fileNo = file != null
-                        ? "FILE #${file.enquiryNo}"
+                        ? "${file.enquiryNo}"
                         : "KAZIN";
 
                     final inboundFlight = file?.flights.firstWhereOrNull(

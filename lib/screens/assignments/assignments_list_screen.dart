@@ -4,7 +4,6 @@ import 'package:kazin_guide_app/controllers/assignments_controller.dart';
 import 'package:kazin_guide_app/core/theme/app_theme.dart';
 import 'package:kazin_guide_app/models/assignment_summary_model.dart';
 import 'package:kazin_guide_app/models/tour_file_model.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AssignmentListScreen extends GetView<AssignmentsController> {
   const AssignmentListScreen({super.key});
@@ -43,11 +42,9 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
                   Tab(text: "Active (${controller.activeAssignments.length})"),
             ),
             Obx(() {
-              // Sirf accepted files ka count dikhaye
-              final acceptedCount = controller.upcomingAssignments
-                  .where((item) => item.isAccepted == 1)
-                  .length;
-              return Tab(text: "Upcoming ($acceptedCount)");
+              // Sirf confirmed upcoming files ka count
+              final count = controller.upcomingAssignments.length;
+              return Tab(text: "Upcoming ($count)");
             }),
             Obx(
               () => Tab(
@@ -97,12 +94,22 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: items.length,
-        itemBuilder: (context, index) => _buildActiveCard(items[index]),
+        itemBuilder: (context, index) {
+          return _buildActiveCard(items[index]);
+        },
       ),
     );
   }
 
   Widget _buildActiveCard(TourFileModel file) {
+    final int adults = file.numAdults > 0 ? file.numAdults : file.numberPersons;
+    final int children = file.numChild;
+    final String guestDetails = children > 0
+        ? "$adults Adults, $children Child"
+        : "$adults Adults";
+    final String groupType = file.groupType.isNotEmpty
+        ? file.groupType
+        : "Standard";
     return Card(
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -115,7 +122,7 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
               children: [
                 Expanded(
                   child: Text(
-                    "FILE #${file.enquiryNo}",
+                    "${file.enquiryNo}",
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -145,12 +152,33 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
             ),
             const SizedBox(height: 10),
             Text(
-              "${file.leadName} (${file.numberPersons} PAX)",
+              "${file.leadName}",
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: KazinColors.primaryNavy,
               ),
+            ),
+            const SizedBox(height: 4),
+
+            // Guest details: Adults, Child & Group Type under Lead Name (NO PAX)
+            Row(
+              children: [
+                Icon(
+                  Icons.groups_outlined,
+                  size: 15,
+                  color: KazinColors.greenAcceptedText,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  "$guestDetails • $groupType",
+                  style: TextStyle(
+                    color: KazinColors.primaryNavy,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             if (file.hotel != null) ...[
@@ -220,14 +248,11 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
     );
   }
 
-  // --- TAB 2: UPCOMING ACCEPTED ASSIGNMENTS (AssignmentSummaryModel) ---
+  // --- TAB 2: UPCOMING ACCEPTED ASSIGNMENTS ---
   Widget _buildUpcomingTab() {
-    // Sirf wahi files jinka isAccepted == 1 hai
-    final acceptedItems = controller.upcomingAssignments
-        .where((item) => item.isAccepted == 1)
-        .toList();
+    final items = controller.upcomingAssignments;
 
-    if (acceptedItems.isEmpty) {
+    if (items.isEmpty) {
       return _buildEmptyState(
         icon: Icons.calendar_month_outlined,
         text: "No confirmed upcoming tours found.",
@@ -238,80 +263,101 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
       onRefresh: controller.refreshAssignments,
       color: KazinColors.primaryNavy,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: acceptedItems.length,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemCount: items.length,
         itemBuilder: (context, index) =>
-            _buildUpcomingCard(acceptedItems[index]),
+            _buildUpcomingAlertStyleCard(items[index]),
       ),
     );
   }
 
-  Widget _buildUpcomingCard(AssignmentSummaryModel item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+  /// Alert Page card ke format par based Upcoming Card
+  Widget _buildUpcomingAlertStyleCard(AssignmentSummaryModel item) {
+    final bool isUnlocked = item.isDetailsUnlocked;
+
+    final String formattedArrivalDate = controller.formatToDDMMYYYY(
+      item.arrivalDate.isNotEmpty ? item.arrivalDate : item.checkInDate,
+    );
+
+    final String formattedDateRange = controller.formatRangeDDMMYYYY(
+      item.checkInDate,
+      item.checkOutDate,
+    );
+
+    final String guestsText = item.numberChild > 0
+        ? "${item.numberPersons} Adults, ${item.numberChild} Children"
+        : "${item.numberPersons} Guests";
+
+    return Card(
+      elevation: 0.5,
+      margin: const EdgeInsets.only(bottom: 14),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: KazinColors.greenAcceptedText.withValues(alpha: 0.25),
-          width: 1.2,
+        side: BorderSide(
+          color: isUnlocked
+              ? KazinColors.secondaryTeal.withValues(alpha: 0.4)
+              : KazinColors.borderSubtle,
+          width: isUnlocked ? 1.2 : 1.0,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Accepted Badge & Pax/Night Info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3.5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KazinColors.greenAcceptedBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle_outline_rounded,
-                        size: 13,
-                        color: KazinColors.greenAcceptedText,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        "CONFIRMED UPCOMING",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: KazinColors.greenAcceptedText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  "${item.numberOfNights} Nights • ${item.numberPersons} PAX",
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: KazinColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+            // Top Row: Lock/Unlock Badge & Arrival ID
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //   children: [
+            //     Container(
+            //       padding: const EdgeInsets.symmetric(
+            //         horizontal: 8,
+            //         vertical: 4,
+            //       ),
+            //       decoration: BoxDecoration(
+            //         color: isUnlocked
+            //             ? KazinColors.greenAcceptedBg
+            //             : KazinColors.scaffoldBg,
+            //         borderRadius: BorderRadius.circular(6),
+            //       ),
+            //       child: Row(
+            //         mainAxisSize: MainAxisSize.min,
+            //         children: [
+            //           Icon(
+            //             isUnlocked
+            //                 ? Icons.lock_open_rounded
+            //                 : Icons.lock_outline_rounded,
+            //             size: 13,
+            //             color: isUnlocked
+            //                 ? KazinColors.greenAcceptedText
+            //                 : KazinColors.textSecondary,
+            //           ),
+            //           const SizedBox(width: 4),
+            //           Text(
+            //             isUnlocked
+            //                 ? "DOSSIER UNLOCKED"
+            //                 : "LOCKED • OPENS IN ${item.arrivalDate}D",
+            //             style: TextStyle(
+            //               fontSize: 10,
+            //               fontWeight: FontWeight.w800,
+            //               color: isUnlocked
+            //                   ? KazinColors.greenAcceptedText
+            //                   : KazinColors.textSecondary,
+            //             ),
+            //           ),
+            //         ],
+            //       ),
+            //     ),
+            //     Text(
+            //       "ID: #${item.arrivalId}",
+            //       style: const TextStyle(
+            //         fontSize: 11,
+            //         fontWeight: FontWeight.bold,
+            //         color: KazinColors.textSecondary,
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: 10),
 
             // Lead Passenger Name
@@ -320,116 +366,224 @@ class AssignmentListScreen extends GetView<AssignmentsController> {
                   ? item.leadName
                   : "Group Tour Assignment",
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: KazinColors.primaryNavy,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
 
-            // Dates & Duration
+            // 1. Group Type & No. of Guests Row (Alert Style)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: KazinColors.scaffoldBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildDetailItem(
+                      icon: Icons.groups_outlined,
+                      label: "No. Guests",
+                      value: guestsText,
+                    ),
+                  ),
+                  Container(
+                    height: 28,
+                    width: 1,
+                    color: KazinColors.borderSubtle,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildDetailItem(
+                      icon: Icons.category_outlined,
+                      label: "Group Type",
+                      value: item.groupType.isNotEmpty
+                          ? item.groupType
+                          : "Standard",
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 2. Arrival Date & File Duration Row (Alert Style)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: KazinColors.scaffoldBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildDetailItem(
+                      icon: Icons.flight_land_rounded,
+                      label: "Arrival Date",
+                      value: formattedArrivalDate,
+                    ),
+                  ),
+                  Container(
+                    height: 28,
+                    width: 1,
+                    color: KazinColors.borderSubtle,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildDetailItem(
+                      icon: Icons.timelapse_rounded,
+                      label: "File Duration",
+                      value: "${item.numberOfNights} Nights",
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 3. Check-In & Check-Out Date Range (DD-MM-YYYY)
             Row(
               children: [
                 const Icon(
                   Icons.date_range_outlined,
-                  size: 14,
+                  size: 15,
                   color: KazinColors.textSecondary,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  controller.formatDateRange(
-                    item.checkInDate,
-                    item.checkOutDate,
-                  ),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: KazinColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 22),
-
-            // Bottom Action Row: Contact Action & Arrival ID info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (item.leadContact.isNotEmpty)
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        final clean = item.leadContact.replaceAll(
-                          RegExp(r'[^0-9+]'),
-                          '',
-                        );
-                        launchUrl(Uri.parse('tel:$clean'));
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: KazinColors.scaffoldBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: KazinColors.borderSubtle),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.phone_outlined,
-                              size: 14,
-                              color: KazinColors.secondaryTeal,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              item.leadContact,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: KazinColors.secondaryTeal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox.shrink(),
-
-                // Arrival Reference Tag
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KazinColors.scaffoldBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                Expanded(
                   child: Text(
-                    "ID: #${item.arrivalId}",
+                    "Check in - Check out: $formattedDateRange",
                     style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: KazinColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: KazinColors.primaryNavy,
                     ),
                   ),
                 ),
               ],
             ),
+            const Divider(height: 24),
+
+            // Bottom Action: View Details / Locked Notice
+            Obx(() {
+              final bool isLoadingCurrent =
+                  controller.loadingArrivalId.value == item.arrivalId;
+
+              if (!isUnlocked) {
+                // 48 hours se bahar: Disabled / Locked view
+                return OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: KazinColors.textSecondary,
+                    side: const BorderSide(color: KazinColors.borderSubtle),
+                    minimumSize: const Size.fromHeight(44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () => controller.openUpcomingFileDetails(item),
+                  icon: const Icon(Icons.lock_clock_rounded, size: 16),
+                  label: Text(
+                    "Currently details are not available",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }
+
+              // 48 hours ke andar: Active View Details button
+              return ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KazinColors.primaryNavy,
+                  elevation: 0,
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: isLoadingCurrent
+                    ? null
+                    : () => controller.openUpcomingFileDetails(item),
+                child: isLoadingCurrent
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "View Details",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
-  // --- TAB 3: COMPLETED (AssignmentSummaryModel) ---
+  Widget _buildDetailItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: KazinColors.primaryNavy),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: KazinColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: KazinColors.primaryNavy,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- TAB 3: COMPLETED ---
   Widget _buildCompletedTab() {
     final items = controller.completedAssignments;
     if (items.isEmpty) {

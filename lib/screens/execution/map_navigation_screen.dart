@@ -71,7 +71,7 @@ class MapNavigationScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 file != null
-                    ? "Plan route for File #${file.enquiryNo} (${file.leadName})"
+                    ? "Plan route for ${file.enquiryNo} (${file.leadName})"
                     : "Plan your route between pickup and destination.",
                 style: const TextStyle(color: KazinColors.textSecondary),
               ),

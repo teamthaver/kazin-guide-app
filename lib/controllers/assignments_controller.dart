@@ -29,6 +29,8 @@ class AssignmentsController extends GetxController
   // 3. Completed tour files -> Completed Tab ke liye
   final completedAssignments = <AssignmentSummaryModel>[].obs;
 
+  final pendingAlerts = <AssignmentSummaryModel>[].obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -43,7 +45,6 @@ class AssignmentsController extends GetxController
 
   TourFileModel? get activeFile => arrivalCtrl.activeTourFile.value;
 
-  // ACTIVE TAB: Sirf actual arrival/active file jo closed ya cancelled nahi hai
   List<TourFileModel> get activeAssignments {
     final file = activeFile;
     if (file == null) return [];
@@ -66,6 +67,7 @@ class AssignmentsController extends GetxController
       await arrivalCtrl.loadArrivalData();
 
       await Future.wait([
+        fetchAlertsData(),
         fetchUpcomingAssignments(),
         fetchCompletedAssignments(),
       ]);
@@ -73,6 +75,156 @@ class AssignmentsController extends GetxController
       log("Error loading all assignments: $e");
     } finally {
       isFetchingLists.value = false;
+    }
+  }
+
+  String formatToDDMMYYYY(String? rawDate) {
+    if (rawDate == null || rawDate.trim().isEmpty) return "N/A";
+    try {
+      final dt = DateTime.parse(rawDate.trim());
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = dt.month.toString().padLeft(2, '0');
+      final year = dt.year.toString();
+      return "$day-$month-$year";
+    } catch (_) {
+      // Agar backend se "2026-11-15 14:30:00" jaisa format aaye
+      try {
+        final parts = rawDate.trim().split(' ')[0].split('-');
+        if (parts.length == 3) {
+          return "${parts[2].padLeft(2, '0')}-${parts[1].padLeft(2, '0')}-${parts[0]}";
+        }
+      } catch (_) {}
+      return rawDate;
+    }
+  }
+
+  String formatRangeDDMMYYYY(String checkIn, String checkOut) {
+    final start = formatToDDMMYYYY(checkIn);
+    final end = formatToDDMMYYYY(checkOut);
+    return "$start  to  $end";
+  }
+
+  // 1. Unlocked TourFileModel files ki reactive list (/upcoming-details se)
+  final upcomingTourFiles = <TourFileModel>[].obs;
+
+  // Kaunsi file ki details load ho rahi hai (single item loader tracking)
+  final loadingArrivalId = RxnInt();
+
+  Future<void> openUpcomingFileDetails(AssignmentSummaryModel item) async {
+    if (!item.isDetailsUnlocked) {
+      Get.dialog(
+        AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_clock_rounded, color: KazinColors.primaryNavy),
+              SizedBox(width: 8),
+              Text(
+                "Dossier Locked",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: KazinColors.primaryNavy,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            "This file will be unlock only before 48 hours before its execution.\n\nStarts in: ${item.arrivalDate} days.",
+            style: const TextStyle(
+              fontSize: 13,
+              color: KazinColors.textSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text(
+                "OK",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // 48-Hour Unlocked File: Fetch details
+    loadingArrivalId.value = item.arrivalId;
+    try {
+      final response = await _apiService.loadUpcomingDetails(
+        arrivalId: item.arrivalId,
+      );
+
+      if (response.isOk &&
+          response.body != null &&
+          response.body['success'] == true) {
+        final List dataList = response.body['data'] ?? [];
+        if (dataList.isNotEmpty) {
+          final TourFileModel fullTourFile = TourFileModel.fromJson(
+            dataList.first,
+          );
+
+          // Details Screen par navigate karein
+          Get.toNamed(
+            Routes.ASSIGNMENT_DETAILS,
+            arguments: {"tourFile": fullTourFile, "isNewAssignment": false},
+          );
+        }
+      } else if (response.statusCode == 403 &&
+          response.body is Map &&
+          response.body['code'] == 'DETAILS_NOT_OPEN') {
+        Get.snackbar(
+          "Dossier Locked",
+          "Details will open 48 hours prior to check-in.",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: KazinColors.redDanger,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      log("❌ [OPEN UPCOMING DETAILS ERROR]: $e");
+    } finally {
+      loadingArrivalId.value = null; // Loader hide
+    }
+  }
+
+  Future<void> fetchAlertsData() async {
+    try {
+      final response = await _apiService.loadAlertData(
+        guideId: _authService.guideId,
+      );
+
+      log("📥 [ALERT API RESPONSE]: ${response.body}");
+
+      if (response.isOk &&
+          response.body != null &&
+          response.body['success'] == true) {
+        final List list = response.body['data'] ?? [];
+        final parsedList = <AssignmentSummaryModel>[];
+
+        for (var item in list) {
+          try {
+            parsedList.add(AssignmentSummaryModel.fromJson(item));
+          } catch (err) {
+            log("❌ [ALERT PARSE ERROR]: $err | data: $item");
+          }
+        }
+
+        // List update karein
+        pendingAlerts.assignAll(parsedList);
+
+        log(
+          "✅ [ALERTS FETCHED]: ${pendingAlerts.length} files waiting for action",
+        );
+      } else {
+        log("⚠️ [ALERT API FAILED]: ${response.statusCode} | ${response.body}");
+      }
+    } catch (e) {
+      log("❌ [ALERT API EXCEPTION]: $e");
     }
   }
 
@@ -177,7 +329,7 @@ class AssignmentsController extends GetxController
         "Nov",
         "Dec",
       ];
-      return "${inDt.day} ${months[inDt.month - 1]} - ${outDt.day} ${months[outDt.month - 1]} ${outDt.year}";
+      return "${inDt.day}-${months[inDt.month - 1]}-${inDt.year} / ${outDt.day}-${months[outDt.month - 1]}-${outDt.year}";
     } catch (_) {
       return "$checkIn → $checkOut";
     }
@@ -188,15 +340,20 @@ class AssignmentsController extends GetxController
     Get.toNamed(Routes.LIVE_SERVICE);
   }
 
-  // Accept File via ApiService -> Success hone par fetchUpcomingAssignments() se lists re-sync honge
+  // Specific arrival ID tracking
+  final acceptingArrivalId = RxnInt();
+
   Future<bool> acceptTourFile(dynamic fileOrSummary) async {
-    isActionLoading.value = true;
     final int enquiryId = fileOrSummary is TourFileModel
         ? fileOrSummary.enquiryId
         : (fileOrSummary as AssignmentSummaryModel).enquiryId;
     final int arrivalId = fileOrSummary is TourFileModel
         ? fileOrSummary.arrivalId
         : (fileOrSummary as AssignmentSummaryModel).arrivalId;
+
+    // Sirf is specific ID ko loader ke liye set karein
+    acceptingArrivalId.value = arrivalId;
+    isActionLoading.value = true;
 
     try {
       final response = await _apiService.acceptFile(
@@ -205,16 +362,17 @@ class AssignmentsController extends GetxController
       );
 
       if (response.isOk && response.body?['success'] == true) {
+        // Pending list se remove karein
+        pendingAlerts.removeWhere((e) => e.arrivalId == arrivalId);
+        await fetchUpcomingAssignments();
+
         Get.snackbar(
           "Assignment Accepted",
-          response.body?['message'] ?? "File accepted successfully.",
+          "Tour assignment successfully confirmed.",
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: KazinColors.greenAcceptedBg,
           colorText: KazinColors.greenAcceptedText,
         );
-
-        // Upcoming API dobara call karke lists sync karein
-        await fetchUpcomingAssignments();
         return true;
       }
       return false;
@@ -226,6 +384,8 @@ class AssignmentsController extends GetxController
       );
       return false;
     } finally {
+      // Done hone par null reset karein
+      acceptingArrivalId.value = null;
       isActionLoading.value = false;
     }
   }

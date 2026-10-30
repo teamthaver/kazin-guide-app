@@ -140,7 +140,7 @@ class DeclineAssignmentScreen extends StatelessWidget {
                       children: [
                         Text(
                           fileNumber.isNotEmpty
-                              ? "FILE #$fileNumber"
+                              ? "$fileNumber"
                               : "ID #$arrivalId",
                           style: const TextStyle(
                             fontSize: 11,
