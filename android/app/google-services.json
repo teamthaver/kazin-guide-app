@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "370420999055",
+    "project_id": "kazin-guide-app-7e9a0",
+    "storage_bucket": "kazin-guide-app-7e9a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:370420999055:android:af1092040799d4c9e6a1fa",
+        "android_client_info": {
+          "package_name": "kazin.guide.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3JlvP-1f9GsBUFGHHMefex7CAApfG-pY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

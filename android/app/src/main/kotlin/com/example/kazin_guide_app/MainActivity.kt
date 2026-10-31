@@ -1,4 +1,4 @@
-package com.kazindmc.guide
+package kazin.guide.app
 
 import io.flutter.embedding.android.FlutterActivity
 

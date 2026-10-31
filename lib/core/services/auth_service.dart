@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:kazin_guide_app/core/services/api_service.dart';
+import 'package:kazin_guide_app/core/services/fcm_service.dart';
 
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
@@ -23,6 +24,14 @@ class AuthService extends GetxService {
   Future<AuthService> init() async {
     _box = GetStorage();
     isLoggedIn.value = _box.read<bool>(_authKey) ?? false;
+
+    // App launch par API sync call nahi karni (sirf FCM topic subscribe hoga)
+    if (isLoggedIn.value && guideId > 0) {
+      if (Get.isRegistered<FcmService>()) {
+        Get.find<FcmService>().subscribeToGuideTopic(guideId);
+      }
+    }
+
     return this;
   }
 
@@ -33,6 +42,7 @@ class AuthService extends GetxService {
     required String sessionToken,
     Map<String, dynamic>? guideData,
   }) {
+    // 1. Pehle storage me credentials save karein
     _box.write(_authKey, true);
     _box.write(_guideIdKey, guideId);
     _box.write(_userPhoneKey, phone);
@@ -41,9 +51,20 @@ class AuthService extends GetxService {
       _box.write(_guideDataKey, guideData);
     }
     isLoggedIn.value = true;
+
+    // 2. Login successful hone ke baad hi FCM topic subscribe aur backend token sync karein
+    if (Get.isRegistered<FcmService>()) {
+      Get.find<FcmService>().subscribeToGuideTopic(guideId);
+      Get.find<FcmService>().syncTokenWithBackend();
+    }
   }
 
   void clearSession() {
+    final int currentGuideId = guideId;
+    if (Get.isRegistered<FcmService>() && currentGuideId > 0) {
+      Get.find<FcmService>().unsubscribeFromGuideTopic(currentGuideId);
+    }
+
     _box.remove(_authKey);
     _box.remove(_guideIdKey);
     _box.remove(_userPhoneKey);
@@ -109,39 +130,13 @@ class AuthService extends GetxService {
   }
 
   Future<bool> validateCurrentSession() async {
-    // Abhi ke liye API validation bypass kiya hai
-    // Sirf check karega ki local storage me sessionToken aur guideId hai ya nahi
     if (sessionToken.isEmpty || guideId == 0) {
       return false;
     }
-
     return true;
-
-    /*
-  final deviceString = await DeviceService.getOrCreateDeviceId();
-
-  try {
-    final response = await _apiService.validateSession(
-      guideId: guideId,
-      contactNumber: savedPhone,
-      sessionToken: sessionToken,
-      deviceString: deviceString,
-    );
-
-    if (response.statusCode == 200 && response.body['success'] == true) {
-      if (response.body['data'] != null) {
-        _box.write(_guideDataKey, response.body['data']);
-      }
-      return true;
-    }
-  } catch (_) {}
-
-  clearSession();
-  return false;
-  */
   }
 
-  // POST /auth/logout: End session, destroy session_token (device binding stays)
+  // POST /auth/logout
   Future<void> logout() async {
     try {
       if (sessionToken.isNotEmpty && guideId != 0) {

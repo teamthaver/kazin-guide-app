@@ -415,4 +415,9 @@ class ApiService extends GetConnect {
     );
     return post('/api/action/report-issue', form);
   }
+
+  // POST /save-fcm-token (Backend par guide ka token save karne ke liye)
+  Future<Response> saveFcmToken(String fcmToken) async {
+    return await post('/api/action/save-fcm-token', {'fcm_token': fcmToken});
+  }
 }

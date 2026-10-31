@@ -554,12 +554,24 @@ class HomeDashboardScreen extends StatelessWidget {
             }),
             const SizedBox(height: 16),
 
-            // 4. TODAY'S DAILY INSTRUCTIONS
             Obx(() {
+              if (ctrl.isChecklistLoading.value) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: KazinColors.primaryNavy,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
               final file = arrivalCtrl.activeTourFile.value;
               final groups = ctrl.checklistGroups;
 
-              // Current Active Day Number calculate karein (Day 1, Day 2 etc.)
+              // Current Active Day Number calculate karein
               int displayDay = 1;
               if (file != null) {
                 final Map<String, List<ItineraryStepModel>> grouped = {};
@@ -585,6 +597,11 @@ class HomeDashboardScreen extends StatelessWidget {
               }
 
               final todayItems = todayGroup?.items ?? [];
+
+              // AGAR DATA NAHI HAI TOH CARD COMPLETELY HIDE HO JAYEGA (No 0/0, No Heading)
+              if (todayItems.isEmpty) {
+                return const SizedBox.shrink();
+              }
 
               // Counter calculate sirf AAJ KE tasks ke liye hoga
               final int todayTotal = todayItems.length;
@@ -651,165 +668,136 @@ class HomeDashboardScreen extends StatelessWidget {
                       ),
                       const Divider(height: 20),
 
-                      if (ctrl.isChecklistLoading.value)
-                        const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: KazinColors.primaryNavy,
-                            ),
-                          ),
-                        )
-                      else if (todayItems.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: Text(
-                              "Today's Instructions are not available.",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: KazinColors.textMuted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        ...todayItems.map((item) {
-                          final bool isChecked = item.isChecked;
-                          final bool isThisLoading =
-                              ctrl.markingChecklistId.value == item.checklistId;
+                      ...todayItems.map((item) {
+                        final bool isChecked = item.isChecked;
+                        final bool isThisLoading =
+                            ctrl.markingChecklistId.value == item.checklistId;
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: isThisLoading
-                                  ? null
-                                  : () => _onChecklistItemTap(
-                                      context,
-                                      item,
-                                      file,
-                                      ctrl,
-                                    ),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: isThisLoading
+                                ? null
+                                : () => _onChecklistItemTap(
+                                    context,
+                                    item,
+                                    file,
+                                    ctrl,
+                                  ),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isChecked
+                                    ? KazinColors.greenAcceptedBg
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
                                   color: isChecked
-                                      ? KazinColors.greenAcceptedBg
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
+                                      ? KazinColors.greenAcceptedText
+                                      : KazinColors.borderSubtle,
+                                  width: isChecked ? 1.5 : 1.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
                                     color: isChecked
                                         ? KazinColors.greenAcceptedText
-                                        : KazinColors.borderSubtle,
-                                    width: isChecked ? 1.5 : 1.0,
+                                              .withValues(alpha: 0.08)
+                                        : Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // 1. Circular Icon Pill
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: isChecked
+                                          ? Colors.white
+                                          : KazinColors.blueInfoBg,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      isChecked
+                                          ? Icons.check_circle_rounded
+                                          : ctrl.getTypeIcon(item.type),
+                                      size: 20,
                                       color: isChecked
                                           ? KazinColors.greenAcceptedText
-                                                .withValues(alpha: 0.08)
-                                          : Colors.black.withValues(
-                                              alpha: 0.02,
-                                            ),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
+                                          : KazinColors.primaryNavy,
                                     ),
-                                  ],
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    // 1. Circular Icon Pill
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isChecked
-                                            ? Colors.white
-                                            : KazinColors.blueInfoBg,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        isChecked
-                                            ? Icons.check_circle_rounded
-                                            : ctrl.getTypeIcon(item.type),
-                                        size: 20,
-                                        color: isChecked
-                                            ? KazinColors.greenAcceptedText
-                                            : KazinColors.primaryNavy,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
+                                  ),
+                                  const SizedBox(width: 12),
 
-                                    // 2. Task Title & Subtitle / Details
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
+                                  // 2. Task Title & Subtitle / Details
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          item.title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            height: 1.25,
+                                            color: isChecked
+                                                ? KazinColors.greenAcceptedText
+                                                : KazinColors.primaryNavy,
+                                          ),
+                                        ),
+                                        if (item.details != null &&
+                                            item.details!
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 3),
                                           Text(
-                                            item.title,
-                                            maxLines: 2,
+                                            item.details!.trim(),
+                                            maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                              height: 1.25,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
                                               color: isChecked
                                                   ? KazinColors
                                                         .greenAcceptedText
-                                                  : KazinColors.primaryNavy,
+                                                        .withValues(alpha: 0.85)
+                                                  : KazinColors.textSecondary,
                                             ),
                                           ),
-                                          if (item.details != null &&
-                                              item.details!
-                                                  .trim()
-                                                  .isNotEmpty) ...[
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              item.details!.trim(),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                color: isChecked
-                                                    ? KazinColors
-                                                          .greenAcceptedText
-                                                          .withValues(
-                                                            alpha: 0.85,
-                                                          )
-                                                    : KazinColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
                                         ],
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
+                                  ),
+                                  const SizedBox(width: 8),
 
-                                    // 3. Trailing Arrow Navigation Icon
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      size: 14,
-                                      color: isChecked
-                                          ? KazinColors.greenAcceptedText
-                                                .withValues(alpha: 0.8)
-                                          : KazinColors.textMuted,
-                                    ),
-                                  ],
-                                ),
+                                  // 3. Trailing Arrow Navigation Icon
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                    color: isChecked
+                                        ? KazinColors.greenAcceptedText
+                                              .withValues(alpha: 0.8)
+                                        : KazinColors.textMuted,
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        }),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
